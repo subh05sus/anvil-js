@@ -4,3 +4,7 @@ export { loadManifest } from './loader.js';
 export type { Importer } from './loader.js';
 export { generateManifest } from './manifest.js';
 export type { GenerateOptions } from './manifest.js';
+export { zodToJsonSchema, tryZodToJsonSchema, SchemaConversionError } from './json-schema.js';
+export type { JsonSchema } from './json-schema.js';
+export { validateRoutes } from './validate.js';
+export type { Diagnostic, DiagnosticLevel, ValidateResult } from './validate.js';

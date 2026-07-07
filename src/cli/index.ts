@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { buildCommand } from './build.js';
 import { devCommand } from './dev.js';
+import { lintCommand } from './lint.js';
 import { startCommand } from './start.js';
 
 const program = new Command();
@@ -38,9 +39,15 @@ program
     startCommand({ entry: opts.entry, port: opts.port ? Number(opts.port) : undefined }),
   );
 
+program
+  .command('lint')
+  .description('Validate routes: param/schema consistency and tool-schema serializability')
+  .option('-r, --routes <dir>', 'routes directory', 'server/routes')
+  .option('--strict', 'treat warnings as errors')
+  .action((opts: { routes: string; strict?: boolean }) => lintCommand(opts));
+
 for (const [name, milestone] of [
   ['mcp', 'M2 (MCP auto-exposure)'],
-  ['lint', 'M1 (compile-time validation)'],
   ['eval', 'M6 (agent evals harness)'],
   ['replay', 'M6 (trace replay)'],
 ] as const) {

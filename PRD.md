@@ -240,8 +240,8 @@ Architectural invariants:
 
 ## 10. Milestones
 
-1. **M0 — Core routing engine**: filesystem scanner, manifest generation, web-standard kernel (router, context, middleware, Node adapter), CLI dev/build/start, Express-parity basics
-2. **M1 — Compile-time validation**: ts-morph pass for naming/conflicts, Zod-to-handler type checks, JSON-Schema convertibility checks
+1. **M0 — Core routing engine** ✅: filesystem scanner, manifest generation, web-standard kernel (router, context, middleware, Node adapter), CLI dev/build/start, Express-parity basics
+2. **M1 — Compile-time validation** ✅: `anvil lint` — param/schema key consistency, Zod→JSON-Schema convertibility checks (edge #2), MCP-exposure description warnings; scanner conflict/collision checks surfaced as diagnostics. (Deeper ts-morph handler-body analysis — e.g. `ctx.params.x` usage vs declared params — deferred to a later pass.)
 3. **M2 — MCP auto-exposure + tool registry**: `anvil mcp` (Streamable HTTP + stdio), schema inference, single-source tool definitions
 4. **M3 — Model client + agent routes**: `ctx.llm` driver abstraction, `agent.ts`, AI SDK-compatible streaming, abort propagation, structured output enforcement
 5. **M4 — Observability**: SQLite trace capture, `/_anvil` dashboard, OTel GenAI export, cost governor
