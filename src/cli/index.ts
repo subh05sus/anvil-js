@@ -3,6 +3,8 @@ import { Command } from 'commander';
 import { buildCommand } from './build.js';
 import { devCommand } from './dev.js';
 import { evalCommand } from './eval.js';
+import { initCommand } from './init.js';
+import type { TemplateId } from './init-templates.js';
 import { lintCommand } from './lint.js';
 import { mcpCommand } from './mcp.js';
 import { replayCommand } from './replay.js';
@@ -11,6 +13,16 @@ import { startCommand } from './start.js';
 const program = new Command();
 
 program.name('anvil').description('Anvil JS — Express for humans. Anvil for agents.').version('0.0.1');
+
+program
+  .command('init')
+  .description('Scaffold a new Anvil project (package.json, tsconfig, starter routes)')
+  .argument('[dir]', 'target directory', '.')
+  .option('-t, --template <name>', 'template: basic | mcp | agent (skips the prompt)')
+  .option('-y, --yes', 'skip the prompt, defaulting to the basic template')
+  .action((dir: string, opts: { template?: TemplateId; yes?: boolean }) =>
+    initCommand({ dir, template: opts.template, yes: opts.yes }),
+  );
 
 program
   .command('dev')

@@ -25,11 +25,15 @@ Core routing, MCP/A2A exposure, agent runtime, observability, durability, evals,
 ## Quick start
 
 ```bash
+mkdir my-api && cd my-api
+npm init -y
 npm install anvil zod
-npx anvil dev     # dev server, hot reload
-npx anvil build   # generate the manifest + production bundle
-npx anvil start   # run it
+npx anvil init      # scaffolds package.json scripts, tsconfig, and a starter route
+npm install
+npx anvil dev       # dev server, hot reload
 ```
+
+`anvil init` prompts for a starting point (basic API / MCP server / agent route), or skip the prompt with `--template <name>` / `-y`.
 
 Or try a working example in under a minute:
 
@@ -88,6 +92,7 @@ export default async function handler(ctx: Context) {
 
 | Command | Does |
 |---|---|
+| `anvil init [dir]` | Scaffolds package.json, tsconfig, and starter routes (basic API / MCP server / agent route) |
 | `anvil dev` | Dev server, hot reload, TypeScript routes loaded on the fly |
 | `anvil build` | Static route manifest + production bundle |
 | `anvil start` | Runs the production bundle |

@@ -8,6 +8,14 @@ npm install anvil zod
 
 Anvil is ESM-only, Node ≥ 20. `zod` is a direct dependency of your route/tool schemas (Anvil re-exports the pieces it needs, but you'll write your own `z.object(...)` calls).
 
+## Scaffold a project
+
+```bash
+npx anvil init
+```
+
+Prompts for a starting point — **basic API**, **MCP server**, or **agent route** — then writes `package.json` (scripts + dependencies, merging into an existing file if one is present), `tsconfig.json`, `.gitignore`, and a starter route or two. Never overwrites a file that already exists. Skip the prompt with `--template basic|mcp|agent` or `-y` (defaults to basic), useful for scripting or CI.
+
 ## A route
 
 ```
