@@ -1,4 +1,4 @@
-import type { Middleware } from 'anvil';
+import type { Middleware } from 'anvil-js';
 
 const scope: Middleware = async (_ctx, next) => {
   const res = await next();

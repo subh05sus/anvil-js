@@ -5,7 +5,7 @@
 An agent run checkpoints after every completed iteration. A crash or redeploy resumes from the last step instead of restarting (and re-billing) the whole run:
 
 ```ts
-import { SqliteStateStore } from 'anvil/store'; // or MemoryStateStore for tests
+import { SqliteStateStore } from 'anvil-js/store'; // or MemoryStateStore for tests
 
 export default defineAgent({
   client,
@@ -34,7 +34,7 @@ const refund: AgentTool = {
 The run persists a `suspended` checkpoint and streams a `suspended` data-stream part with a `callId`. Resume it with the human's decision:
 
 ```ts
-import { resumeAgent } from 'anvil/agent';
+import { resumeAgent } from 'anvil-js/agent';
 
 for await (const event of resumeAgent({ client, tools: [refund], checkpoint: { store, runId }, approval: { approved: true } })) { /* ... */ }
 ```
@@ -44,7 +44,7 @@ The approved value is injected as the tool's result — `execute()` is **not** r
 ## Guardrails
 
 ```ts
-import { contentFilter, redactPII, toolPolicy, injectionGuard } from 'anvil/agent';
+import { contentFilter, redactPII, toolPolicy, injectionGuard } from 'anvil-js/agent';
 
 export default defineAgent({
   client,

@@ -1,5 +1,5 @@
-import { serveStatic, type Middleware } from 'anvil';
-import { dashboardMiddleware } from 'anvil/trace';
+import { serveStatic, type Middleware } from 'anvil-js';
+import { dashboardMiddleware } from 'anvil-js/trace';
 import { traceStore } from '../trace';
 
 const logger: Middleware = async (ctx, next) => {

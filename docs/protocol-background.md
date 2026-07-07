@@ -4,7 +4,7 @@
 
 ```ts
 // server/schedule/nightly-report/schedule.ts
-import { defineSchedule } from 'anvil/schedule';
+import { defineSchedule } from 'anvil-js/schedule';
 
 export default defineSchedule({
   name: 'nightly-report',
@@ -14,7 +14,7 @@ export default defineSchedule({
 ```
 
 ```ts
-import { Scheduler, loadBackgroundTasks } from 'anvil/schedule';
+import { Scheduler, loadBackgroundTasks } from 'anvil-js/schedule';
 
 const { schedules } = await loadBackgroundTasks('server/schedule');
 const scheduler = new Scheduler({ tracer });
@@ -26,12 +26,12 @@ scheduler.start(); // polls every minute; each due task runs once, wrapped in a 
 
 ```ts
 // server/triggers/order-created/trigger.ts
-import { defineTrigger } from 'anvil/schedule';
+import { defineTrigger } from 'anvil-js/schedule';
 export default defineTrigger({ name: 'order.created', run: async (ctx) => { /* ctx.payload */ } });
 ```
 
 ```ts
-import { TriggerRegistry } from 'anvil/schedule';
+import { TriggerRegistry } from 'anvil-js/schedule';
 const triggers = new TriggerRegistry({ tracer }).register(orderCreatedTrigger);
 await triggers.fire('order.created', webhookPayload); // from any webhook handler
 ```
@@ -45,7 +45,7 @@ See [agents.md](./agents.md#multi-agent) — `AgentRegistry`, `agentAsTool`, `ca
 ## A2A (Agent2Agent)
 
 ```ts
-import { A2AServer, a2aHttpHandler } from 'anvil/a2a';
+import { A2AServer, a2aHttpHandler } from 'anvil-js/a2a';
 
 const server = new A2AServer({
   registry,                                  // an AgentRegistry
@@ -59,7 +59,7 @@ Serves the agent card at `/.well-known/agent-card.json` and JSON-RPC (`message/s
 ## Sandboxed execution
 
 ```ts
-import { runSandboxed } from 'anvil/sandbox';
+import { runSandboxed } from 'anvil-js/sandbox';
 
 const result = await runSandboxed('input.a + input.b', { globals: { input: { a: 2, b: 3 } }, timeoutMs: 1000 });
 // { ok: true, value: 5, logs: [...] }

@@ -3,7 +3,7 @@
 ## Evals
 
 ```ts
-import { defineEvalSuite, agentRunner, outputContains, toolCalled, maxCost, judge } from 'anvil/eval';
+import { defineEvalSuite, agentRunner, outputContains, toolCalled, maxCost, judge } from 'anvil-js/eval';
 
 export default defineEvalSuite({
   name: 'support agent',
@@ -32,7 +32,7 @@ Deterministic assertions: `outputContains`/`outputMatches`, `toolCalled`, `maxCo
 ## Prompt registry
 
 ```ts
-import { PromptRegistry, renderPrompt } from 'anvil/prompt';
+import { PromptRegistry, renderPrompt } from 'anvil-js/prompt';
 
 const registry = new PromptRegistry(stateStore);
 await registry.register('support-system', 'You are a support agent. Be concise.');

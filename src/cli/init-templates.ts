@@ -24,7 +24,7 @@ const GET_HANDLER = `export default function handler() {
 }
 `;
 
-const BASIC_USER_ROUTE = `import { HttpError, type Context } from 'anvil';
+const BASIC_USER_ROUTE = `import { HttpError, type Context } from 'anvil-js';
 
 const USERS = [{ id: '1', name: 'Ada Lovelace' }];
 
@@ -35,7 +35,7 @@ export default function handler(ctx: Context) {
 }
 `;
 
-const MCP_USER_ROUTE = `import { HttpError, type Context } from 'anvil';
+const MCP_USER_ROUTE = `import { HttpError, type Context } from 'anvil-js';
 import { z } from 'zod';
 
 // Exposed as an MCP tool (get_users_by_id) with zero extra code — run
@@ -64,8 +64,8 @@ export default async function wordCount(args: { text: string }) {
 }
 `;
 
-const AGENT_ROUTE = `import { defineAgent } from 'anvil/agent';
-import { LlmClient, MockDriver } from 'anvil/llm';
+const AGENT_ROUTE = `import { defineAgent } from 'anvil-js/agent';
+import { LlmClient, MockDriver } from 'anvil-js/llm';
 
 // MockDriver runs with no API key so this route works out of the box.
 // Swap in \`new AnthropicDriver({ apiKey: process.env.ANTHROPIC_API_KEY })\`

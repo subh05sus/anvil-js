@@ -41,7 +41,7 @@ The server implements `initialize`, `tools/list`, `tools/call`, and `ping`. Argu
 ## Programmatic use
 
 ```ts
-import { buildToolset, McpServer, mcpHttpHandler } from 'anvil/mcp';
+import { buildToolset, McpServer, mcpHttpHandler } from 'anvil-js/mcp';
 
 const tools = await buildToolset({ routesDir: 'server/routes', toolsDir: 'server/tools' });
 const server = new McpServer(tools, { name: 'my-app', version: '1.0.0' });

@@ -1,5 +1,5 @@
 {
-  "name": "anvil",
+  "name": "anvil-js",
   "version": "0.0.1",
   "description": "Express for humans. Anvil for agents. Node backend framework with file-based routing, compile-time validation, and a native agentic layer (MCP, tools, tracing).",
   "type": "module",

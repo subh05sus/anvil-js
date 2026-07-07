@@ -1,5 +1,5 @@
-import { defineAgent } from 'anvil/agent';
-import { LlmClient, MockDriver } from 'anvil/llm';
+import { defineAgent } from 'anvil-js/agent';
+import { LlmClient, MockDriver } from 'anvil-js/llm';
 import { z } from 'zod';
 import { USERS } from '../users/data';
 import { tracer } from '../../trace';

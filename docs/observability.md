@@ -5,7 +5,7 @@ Every agent run is captured as a trace tree â€” agent/model/tool/retrieval/cache
 ## Tracing an agent route
 
 ```ts
-import { Tracer, MemoryTraceStore } from 'anvil/trace';
+import { Tracer, MemoryTraceStore } from 'anvil-js/trace';
 
 const tracer = new Tracer(new MemoryTraceStore()); // or await SqliteTraceStore.open() to persist
 
@@ -17,7 +17,7 @@ A trace opens per request and closes when the stream ends (`ok` / `error` / `abo
 ## The dashboard
 
 ```ts
-import { dashboardMiddleware } from 'anvil/trace';
+import { dashboardMiddleware } from 'anvil-js/trace';
 // in a root server/routes/_middleware.ts:
 export default [dashboardMiddleware(traceStore), /* ...other middleware */];
 ```
@@ -27,7 +27,7 @@ Serves a self-contained page at `/_anvil` (trace list, span tree, tokens, cost â
 ## Cost governor
 
 ```ts
-import { CostGovernor } from 'anvil/trace';
+import { CostGovernor } from 'anvil-js/trace';
 
 export default defineAgent({ client, budget: { maxUsd: 0.50 } }); // throws BudgetExceededError once spend crosses the cap
 ```
@@ -37,7 +37,7 @@ Spend accumulates across the run's model calls (including partial usage from an 
 ## OpenTelemetry export
 
 ```ts
-import { otlpHttpExporter } from 'anvil/trace';
+import { otlpHttpExporter } from 'anvil-js/trace';
 
 const tracer = new Tracer(traceStore, {
   onExport: otlpHttpExporter({ url: 'https://collector.example/v1/traces' }),
@@ -51,7 +51,7 @@ Spans map to OTLP following the OpenTelemetry **GenAI semantic conventions** (`g
 `MemoryTraceStore` (zero-dep, default) loses history on restart. For a persistent store:
 
 ```ts
-import { SqliteTraceStore } from 'anvil/trace';
+import { SqliteTraceStore } from 'anvil-js/trace';
 const traceStore = await SqliteTraceStore.open('.anvil/traces.db'); // requires better-sqlite3 (optional peer dep)
 ```
 

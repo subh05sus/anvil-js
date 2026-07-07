@@ -1,4 +1,4 @@
-import { MemoryStateStore } from 'anvil/store';
+import { MemoryStateStore } from 'anvil-js/store';
 
 // Shared across the agent route and the approve route so a suspended run's
 // checkpoint is visible to both. Swap for `await SqliteStateStore.open(...)`

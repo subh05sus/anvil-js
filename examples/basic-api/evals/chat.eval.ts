@@ -1,5 +1,5 @@
-import { agentRunner, defineEvalSuite, outputContains } from 'anvil/eval';
-import { LlmClient, MockDriver } from 'anvil/llm';
+import { agentRunner, defineEvalSuite, outputContains } from 'anvil-js/eval';
+import { LlmClient, MockDriver } from 'anvil-js/llm';
 
 // Uses the MockDriver so `anvil eval` runs with no API key. Swap in a real
 // driver to evaluate against a live model.
