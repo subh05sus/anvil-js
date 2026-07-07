@@ -34,7 +34,7 @@ export interface InitOptions {
   yes?: boolean;
 }
 
-const ANVIL_VERSION = '^0.0.1';
+const ANVIL_VERSION = '^1.0.0';
 const ZOD_VERSION = '^3.23.8';
 const BASE_SCRIPTS: Record<string, string> = {
   dev: 'anvil dev',

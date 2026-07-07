@@ -82,7 +82,7 @@ export class A2AServer {
       name: this.#options.name,
       description: this.#options.description,
       url: this.#options.url,
-      version: this.#options.version ?? '0.0.1',
+      version: this.#options.version ?? '1.0.0',
       capabilities: { streaming: false },
       defaultInputModes: ['text/plain'],
       defaultOutputModes: ['text/plain'],

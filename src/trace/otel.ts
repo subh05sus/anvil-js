@@ -10,7 +10,7 @@ export function traceToOtelSpans(trace: Trace, serviceName = 'anvil'): OtlpResou
     resource: { attributes: [kv('service.name', serviceName)] },
     scopeSpans: [
       {
-        scope: { name: 'anvil', version: '0.0.1' },
+        scope: { name: 'anvil', version: '1.0.0' },
         spans: trace.spans.map((s) => toOtelSpan(s, trace.id)),
       },
     ],

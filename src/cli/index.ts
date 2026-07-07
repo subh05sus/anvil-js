@@ -12,7 +12,7 @@ import { startCommand } from './start.js';
 
 const program = new Command();
 
-program.name('anvil').description('Anvil JS — Express for humans. Anvil for agents.').version('0.0.1');
+program.name('anvil').description('Anvil JS — Express for humans. Anvil for agents.').version('1.0.0');
 
 program
   .command('init')

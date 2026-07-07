@@ -27,7 +27,7 @@ export async function mcpCommand(options: McpOptions): Promise<void> {
     importer: (file) => jiti.import(file),
   });
 
-  const server = new McpServer(tools, { name: 'anvil', version: '0.0.1' });
+  const server = new McpServer(tools, { name: 'anvil', version: '1.0.0' });
 
   if (options.stdio) {
     // stdout is the protocol channel — diagnostics must go to stderr.
