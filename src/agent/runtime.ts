@@ -3,12 +3,15 @@ import { zodToJsonSchema, type JsonSchema } from '../compiler/json-schema.js';
 import type { LlmClient } from '../llm/client.js';
 import type { ContentBlock, GenerateResult, ModelMessage, ToolCall, ToolSpec } from '../llm/types.js';
 import type { CostGovernor } from '../trace/governor.js';
-import type { TraceHandle } from '../trace/tracer.js';
+import type { TraceHandle, SpanHandle } from '../trace/tracer.js';
+import type { StateStore } from '../store/index.js';
+import { ApprovalRequiredError, Checkpointer, type AgentCheckpoint } from './durable.js';
 
 /**
  * A tool the agent can call. `input` is validated with `zodSchema` (if given)
  * before `execute` runs. Declare `sideEffect: true` for tools that mutate
- * external state — the checkpoint-fencing hook (M5, PRD §6.20) keys off it.
+ * external state — the checkpoint fence records completed calls so a resume
+ * never re-runs them (PRD §6.20).
  */
 export interface AgentTool<Input = unknown> {
   name: string;
@@ -23,6 +26,8 @@ export interface AgentTool<Input = unknown> {
 export interface ToolExecMeta {
   callId: string;
   signal?: AbortSignal;
+  /** Suspend the run for human approval (PRD §6.7). Throws; resume with `resumeAgent`. */
+  requestApproval: (payload?: unknown) => never;
 }
 
 export type AgentEvent =
@@ -30,6 +35,7 @@ export type AgentEvent =
   | { type: 'text'; text: string }
   | { type: 'tool_call'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; id: string; name: string; output: unknown; isError: boolean }
+  | { type: 'suspended'; runId?: string; callId: string; payload: unknown }
   | { type: 'final'; text: string; usage: GenerateResult['usage']; costUsd?: number; iterations: number }
   | { type: 'error'; error: string };
 
@@ -47,6 +53,16 @@ export interface RunAgentOptions {
   trace?: TraceHandle;
   /** Per-run budget cap; checked before each model call, recorded after (PRD §6.15). */
   governor?: CostGovernor;
+  /** Durable checkpointing (PRD §6.20). Persist a checkpoint after each step. */
+  checkpoint?: { store: StateStore; runId: string };
+  /**
+   * Pre-supplied tool results keyed by call id — used on resume to fence
+   * already-executed side-effect calls and to inject a granted approval. Any
+   * call whose id is present here is NOT re-executed.
+   */
+  approvals?: Record<string, unknown>;
+  /** Seed counters when resuming from a checkpoint. */
+  resumeState?: { iterations: number; totalUsage: GenerateResult['usage']; totalCostUsd: number };
 }
 
 export interface AgentRunResult {
@@ -55,8 +71,10 @@ export interface AgentRunResult {
   iterations: number;
   totalUsage: GenerateResult['usage'];
   totalCostUsd: number;
-  /** True if the loop stopped because it hit maxIterations rather than finishing. */
+  /** True if the loop stopped at maxIterations rather than finishing. */
   stoppedAtCap: boolean;
+  /** Set when the run suspended for human approval. */
+  suspended?: { runId?: string; callId: string; payload: unknown };
 }
 
 class AbortedError extends Error {
@@ -66,32 +84,63 @@ class AbortedError extends Error {
   }
 }
 
+interface ExecContext {
+  toolMap: Map<string, AgentTool>;
+  approvals: Record<string, unknown>;
+  signal?: AbortSignal;
+  trace?: TraceHandle;
+  agentSpanId?: string;
+}
+
+type ExecOutcome =
+  | { kind: 'done'; resultBlocks: ContentBlock[] }
+  | { kind: 'suspended'; callId: string; payload: unknown; completed: Record<string, unknown> };
+
 /**
- * Drive the agent loop: call the model, execute any requested tools, feed
- * results back, repeat until the model returns a final answer or the iteration
- * cap is hit. `streamAgent` yields events live; `runAgent` collects the result.
+ * Drive the agent loop: call the model, execute requested tools, feed results
+ * back, repeat until a final answer or the iteration cap. Supports durable
+ * checkpointing and human-in-the-loop suspension. `streamAgent` yields events;
+ * `runAgent` collects the result.
  */
 export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentEvent, AgentRunResult> {
   const maxIterations = opts.maxIterations ?? 10;
   const toolMap = new Map((opts.tools ?? []).map((t) => [t.name, t]));
   const toolSpecs: ToolSpec[] = (opts.tools ?? []).map(toSpec);
   const messages: ModelMessage[] = [...opts.messages];
+  const approvals = opts.approvals ?? {};
+  const checkpointer = opts.checkpoint ? new Checkpointer(opts.checkpoint.store, opts.checkpoint.runId) : undefined;
 
-  const total = { inputTokens: 0, outputTokens: 0 };
-  let totalCostUsd = 0;
+  const total = { ...(opts.resumeState?.totalUsage ?? { inputTokens: 0, outputTokens: 0 }) };
+  let totalCostUsd = opts.resumeState?.totalCostUsd ?? 0;
   let finalText = '';
-  let iterations = 0;
+  let iterations = opts.resumeState?.iterations ?? 0;
   let stoppedAtCap = false;
 
   const agentSpan = opts.trace?.startSpan('agent', 'agent', { model: opts.model });
+  const ctx: ExecContext = { toolMap, approvals, signal: opts.signal, trace: opts.trace, agentSpanId: agentSpan?.id };
+
+  const saveCheckpoint = async (status: AgentCheckpoint['status'], extra: Partial<AgentCheckpoint> = {}) => {
+    await checkpointer?.save({ status, messages, iterations, totalUsage: total, totalCostUsd, ...extra });
+  };
 
   try {
-    for (let i = 0; i < maxIterations; i++) {
+    // Resume path: settle tool calls left outstanding by a suspended checkpoint
+    // (the trailing assistant tool_use turn has no answering user results yet).
+    const outstanding = outstandingToolCalls(messages);
+    if (outstanding.length > 0) {
+      const outcome = yield* executeCalls(outstanding, ctx);
+      if (outcome.kind === 'suspended') {
+        return yield* suspend(outcome);
+      }
+      messages.push({ role: 'user', content: outcome.resultBlocks });
+      await saveCheckpoint('running');
+    }
+
+    for (let i = iterations; i < maxIterations; i++) {
       throwIfAborted(opts.signal);
       iterations = i + 1;
       yield { type: 'iteration', n: iterations };
 
-      // Gate on the budget before spending (PRD §6.15).
       opts.governor?.assertWithinBudget();
 
       const modelSpan = opts.trace?.startSpan('model', 'model', { model: opts.model }, agentSpan?.id);
@@ -128,34 +177,24 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
       if (calls.length === 0) {
         finalText = result.text;
         agentSpan?.end('ok', { iterations });
+        await saveCheckpoint('done', { finalText });
         yield { type: 'final', text: finalText, usage: total, costUsd: totalCostUsd, iterations };
         return done();
       }
 
-      // Record the assistant turn (text + tool_use blocks) before executing.
       messages.push({ role: 'assistant', content: assistantBlocks(result.text, calls) });
 
-      const resultBlocks: ContentBlock[] = [];
-      for (const call of calls) {
-        throwIfAborted(opts.signal);
-        yield { type: 'tool_call', id: call.id, name: call.name, input: call.input };
-        const toolSpan = opts.trace?.startSpan(`tool:${call.name}`, 'tool', { name: call.name, input: call.input }, agentSpan?.id);
-        const { output, isError } = await runTool(toolMap, call, opts.signal);
-        toolSpan?.end(isError ? 'error' : 'ok', { output });
-        yield { type: 'tool_result', id: call.id, name: call.name, output, isError };
-        resultBlocks.push({
-          type: 'tool_result',
-          toolUseId: call.id,
-          content: typeof output === 'string' ? output : JSON.stringify(output),
-          isError,
-        });
+      const outcome = yield* executeCalls(calls, ctx);
+      if (outcome.kind === 'suspended') {
+        return yield* suspend(outcome);
       }
-      messages.push({ role: 'user', content: resultBlocks });
+      messages.push({ role: 'user', content: outcome.resultBlocks });
+      await saveCheckpoint('running');
     }
 
-    // Cap reached with tools still pending.
     stoppedAtCap = true;
     agentSpan?.end('ok', { iterations, stoppedAtCap: true });
+    await saveCheckpoint('done');
     yield { type: 'final', text: finalText, usage: total, costUsd: totalCostUsd, iterations };
     return done();
   } catch (err) {
@@ -167,6 +206,18 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
   function done(): AgentRunResult {
     return { text: finalText, messages, iterations, totalUsage: total, totalCostUsd, stoppedAtCap };
   }
+
+  // Persist a suspended checkpoint and emit the suspended event.
+  async function* suspend(outcome: Extract<ExecOutcome, { kind: 'suspended' }>): AsyncGenerator<AgentEvent, AgentRunResult> {
+    agentSpan?.end('ok', { suspended: true });
+    // completed results become approvals so a resume fences them (no re-run).
+    await saveCheckpoint('suspended', {
+      approvals: { ...approvals, ...outcome.completed },
+      pending: { callId: outcome.callId, payload: outcome.payload },
+    });
+    yield { type: 'suspended', runId: opts.checkpoint?.runId, callId: outcome.callId, payload: outcome.payload };
+    return { ...done(), suspended: { runId: opts.checkpoint?.runId, callId: outcome.callId, payload: outcome.payload } };
+  }
 }
 
 export async function runAgent(opts: RunAgentOptions): Promise<AgentRunResult> {
@@ -174,6 +225,72 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentRunResult> {
   let next = await gen.next();
   while (!next.done) next = await gen.next();
   return next.value;
+}
+
+/**
+ * Resume a suspended or crashed run from its checkpoint (PRD §6.20, §6.7).
+ * Pass `approval` to inject the decision for a HITL-suspended run. Already-run
+ * tool calls are fenced by the checkpoint's `approvals` map.
+ */
+export async function* resumeAgent(
+  opts: Omit<RunAgentOptions, 'messages' | 'approvals' | 'resumeState'> & {
+    checkpoint: { store: StateStore; runId: string };
+    approval?: unknown;
+  },
+): AsyncGenerator<AgentEvent, AgentRunResult> {
+  const checkpointer = new Checkpointer(opts.checkpoint.store, opts.checkpoint.runId);
+  const cp = await checkpointer.load();
+  if (!cp) throw new Error(`No checkpoint for run "${opts.checkpoint.runId}"`);
+  if (cp.status === 'done') {
+    return { text: cp.finalText ?? '', messages: cp.messages, iterations: cp.iterations, totalUsage: cp.totalUsage, totalCostUsd: cp.totalCostUsd, stoppedAtCap: false };
+  }
+
+  const approvals = { ...(cp.approvals ?? {}) };
+  if (cp.pending) approvals[cp.pending.callId] = opts.approval;
+
+  return yield* streamAgent({
+    ...opts,
+    messages: cp.messages,
+    approvals,
+    resumeState: { iterations: cp.iterations, totalUsage: cp.totalUsage, totalCostUsd: cp.totalCostUsd },
+  });
+}
+
+/** Run a batch of tool calls, honoring pre-supplied results and suspension. */
+async function* executeCalls(calls: ToolCall[], ctx: ExecContext): AsyncGenerator<AgentEvent, ExecOutcome> {
+  const resultBlocks: ContentBlock[] = [];
+  const completed: Record<string, unknown> = {};
+
+  for (const call of calls) {
+    throwIfAborted(ctx.signal);
+    yield { type: 'tool_call', id: call.id, name: call.name, input: call.input };
+    const span: SpanHandle | undefined = ctx.trace?.startSpan(`tool:${call.name}`, 'tool', { name: call.name, input: call.input }, ctx.agentSpanId);
+
+    // Fenced/approved: result was supplied (resume) — do not re-execute.
+    if (Object.prototype.hasOwnProperty.call(ctx.approvals, call.id)) {
+      const output = ctx.approvals[call.id];
+      span?.end('ok', { output, fenced: true });
+      yield { type: 'tool_result', id: call.id, name: call.name, output, isError: false };
+      resultBlocks.push(toResultBlock(call.id, output, false));
+      completed[call.id] = output;
+      continue;
+    }
+
+    try {
+      const { output, isError } = await runTool(ctx.toolMap, call, ctx.signal);
+      span?.end(isError ? 'error' : 'ok', { output });
+      yield { type: 'tool_result', id: call.id, name: call.name, output, isError };
+      resultBlocks.push(toResultBlock(call.id, output, isError));
+      completed[call.id] = output;
+    } catch (err) {
+      if (err instanceof ApprovalRequiredError) {
+        span?.end('ok', { suspended: true });
+        return { kind: 'suspended', callId: err.callId, payload: err.payload, completed };
+      }
+      throw err;
+    }
+  }
+  return { kind: 'done', resultBlocks };
 }
 
 async function runTool(
@@ -189,12 +306,33 @@ async function runTool(
     if (!parsed.success) return { output: `Invalid tool input: ${parsed.error.message}`, isError: true };
     input = parsed.data;
   }
+  const meta: ToolExecMeta = {
+    callId: call.id,
+    signal,
+    requestApproval: (payload?: unknown) => {
+      throw new ApprovalRequiredError(call.id, payload);
+    },
+  };
   try {
-    const output = await tool.execute(input, { callId: call.id, signal });
+    const output = await tool.execute(input, meta);
     return { output, isError: false };
   } catch (err) {
+    if (err instanceof ApprovalRequiredError) throw err; // handled by the loop, not a tool error
     return { output: err instanceof Error ? err.message : String(err), isError: true };
   }
+}
+
+function toResultBlock(callId: string, output: unknown, isError: boolean): ContentBlock {
+  return { type: 'tool_result', toolUseId: callId, content: typeof output === 'string' ? output : JSON.stringify(output), isError };
+}
+
+/** Tool calls in the trailing assistant turn that have no answering tool_result yet. */
+function outstandingToolCalls(messages: ModelMessage[]): ToolCall[] {
+  const last = messages.at(-1);
+  if (!last || last.role !== 'assistant' || typeof last.content === 'string') return [];
+  return last.content
+    .filter((b): b is Extract<ContentBlock, { type: 'tool_use' }> => b.type === 'tool_use')
+    .map((b) => ({ id: b.id, name: b.name, input: b.input }));
 }
 
 function toSpec(tool: AgentTool): ToolSpec {

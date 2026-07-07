@@ -17,6 +17,9 @@ export function encodeDataStreamPart(event: AgentEvent, messageId: string): stri
       return `9:${JSON.stringify({ toolCallId: event.id, toolName: event.name, args: event.input })}\n`;
     case 'tool_result':
       return `a:${JSON.stringify({ toolCallId: event.id, result: event.output })}\n`;
+    case 'suspended':
+      // Surface HITL suspension as a data part (AI SDK exposes `2:` on `data`).
+      return `2:${JSON.stringify([{ anvilSuspended: { runId: event.runId, callId: event.callId, payload: event.payload } }])}\n`;
     case 'final':
       return `d:${JSON.stringify({ finishReason: 'stop', usage: usage(event.usage) })}\n`;
     case 'error':
