@@ -1,6 +1,7 @@
-/**
- * Agent observability & tracing (PRD §6.6, §6.25) — lands in M4.
- * TraceContext span tree over model/tool/retrieval calls, SQLite-backed,
- * with the /_anvil dashboard and OTel GenAI export.
- */
-export const MODULE_STATUS = 'planned:M4' as const;
+export { Tracer, TraceHandle, SpanHandle } from './tracer.js';
+export type { TracerOptions } from './tracer.js';
+export { MemoryTraceStore } from './memory-store.js';
+export { SqliteTraceStore } from './sqlite-store.js';
+export { CostGovernor, BudgetExceededError } from './governor.js';
+export type { BudgetConfig, BreachAction } from './governor.js';
+export type { Span, Trace, SpanKind, SpanStatus, TraceStore, ListTracesOptions } from './types.js';

@@ -3,8 +3,10 @@ import type { Context } from '../kernel/context.js';
 import type { Handler, Middleware } from '../kernel/types.js';
 import type { LlmClient } from '../llm/client.js';
 import type { ModelMessage } from '../llm/types.js';
+import { CostGovernor, type BudgetConfig } from '../trace/governor.js';
+import type { Tracer, TraceHandle } from '../trace/tracer.js';
 import { toDataStreamResponse } from './datastream.js';
-import { streamAgent, type AgentTool } from './runtime.js';
+import { streamAgent, type AgentEvent, type AgentTool } from './runtime.js';
 
 const LLM_STATE_KEY = 'llm';
 
@@ -29,6 +31,11 @@ export interface DefineAgentConfig {
   system?: string | ((ctx: Context) => string | Promise<string>);
   tools?: AgentTool[] | ((ctx: Context) => AgentTool[] | Promise<AgentTool[]>);
   maxIterations?: number;
+  /** Trace each run (PRD §6.6). A trace is opened per request and closed when the stream ends. */
+  tracer?: Tracer;
+  traceName?: string | ((ctx: Context) => string);
+  /** Per-request budget cap (PRD §6.15). */
+  budget?: BudgetConfig;
   /** Extract the conversation from the request. Default: `body.messages` (AI SDK chat shape). */
   getMessages?: (ctx: Context) => ModelMessage[] | Promise<ModelMessage[]>;
 }
@@ -50,6 +57,9 @@ export function defineAgent(config: DefineAgentConfig): Handler {
     const system = typeof config.system === 'function' ? await config.system(ctx) : config.system;
     const tools = typeof config.tools === 'function' ? await config.tools(ctx) : config.tools;
 
+    const trace = config.tracer?.start(resolveTraceName(config, ctx), { route: ctx.path, method: ctx.method });
+    const governor = config.budget ? new CostGovernor(config.budget) : undefined;
+
     const events = streamAgent({
       client,
       model: config.model,
@@ -58,10 +68,33 @@ export function defineAgent(config: DefineAgentConfig): Handler {
       tools,
       maxIterations: config.maxIterations,
       signal: ctx.req.signal,
+      trace,
+      governor,
     });
 
-    return toDataStreamResponse(events, { signal: ctx.req.signal });
+    const stream = trace ? closeTraceAfter(events, trace, ctx.req.signal) : events;
+    return toDataStreamResponse(stream, { signal: ctx.req.signal });
   };
+}
+
+function resolveTraceName(config: DefineAgentConfig, ctx: Context): string {
+  if (typeof config.traceName === 'function') return config.traceName(ctx);
+  return config.traceName ?? `agent ${ctx.path}`;
+}
+
+/** Close the trace once the event stream finishes (or errors), reflecting the final status. */
+async function* closeTraceAfter(
+  events: AsyncIterable<AgentEvent>,
+  trace: TraceHandle,
+  signal?: AbortSignal,
+): AsyncGenerator<AgentEvent> {
+  try {
+    for await (const event of events) yield event;
+    trace.end(signal?.aborted ? 'aborted' : 'ok');
+  } catch (err) {
+    trace.end('error');
+    throw err;
+  }
 }
 
 async function defaultGetMessages(ctx: Context): Promise<ModelMessage[]> {

@@ -2,6 +2,8 @@ import type { z } from 'zod';
 import { zodToJsonSchema, type JsonSchema } from '../compiler/json-schema.js';
 import type { LlmClient } from '../llm/client.js';
 import type { ContentBlock, GenerateResult, ModelMessage, ToolCall, ToolSpec } from '../llm/types.js';
+import type { CostGovernor } from '../trace/governor.js';
+import type { TraceHandle } from '../trace/tracer.js';
 
 /**
  * A tool the agent can call. `input` is validated with `zodSchema` (if given)
@@ -41,6 +43,10 @@ export interface RunAgentOptions {
   maxIterations?: number;
   /** Aborts model calls and tool execution (client disconnect → here). */
   signal?: AbortSignal;
+  /** Trace this run — records agent/model/tool spans (PRD §6.6). */
+  trace?: TraceHandle;
+  /** Per-run budget cap; checked before each model call, recorded after (PRD §6.15). */
+  governor?: CostGovernor;
 }
 
 export interface AgentRunResult {
@@ -77,28 +83,51 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
   let iterations = 0;
   let stoppedAtCap = false;
 
+  const agentSpan = opts.trace?.startSpan('agent', 'agent', { model: opts.model });
+
   try {
     for (let i = 0; i < maxIterations; i++) {
       throwIfAborted(opts.signal);
       iterations = i + 1;
       yield { type: 'iteration', n: iterations };
 
-      const result = await opts.client.generate({
-        model: opts.model,
-        system: opts.system,
-        messages,
-        tools: toolSpecs.length ? toolSpecs : undefined,
-        signal: opts.signal,
+      // Gate on the budget before spending (PRD §6.15).
+      opts.governor?.assertWithinBudget();
+
+      const modelSpan = opts.trace?.startSpan('model', 'model', { model: opts.model }, agentSpan?.id);
+      let result: GenerateResult;
+      try {
+        result = await opts.client.generate({
+          model: opts.model,
+          system: opts.system,
+          messages,
+          tools: toolSpecs.length ? toolSpecs : undefined,
+          signal: opts.signal,
+        });
+      } catch (err) {
+        modelSpan?.fail(err);
+        throw err;
+      }
+      modelSpan?.end('ok', {
+        provider: result.provider,
+        model: result.model,
+        usage: result.usage,
+        costUsd: result.costUsd,
+        stopReason: result.stopReason,
       });
+
       total.inputTokens += result.usage.inputTokens;
       total.outputTokens += result.usage.outputTokens;
       totalCostUsd += result.costUsd ?? 0;
+      opts.governor?.record(result.usage, result.costUsd);
+      opts.trace?.addUsage(result.usage, result.costUsd);
 
       if (result.text) yield { type: 'text', text: result.text };
 
       const calls = result.toolCalls ?? [];
       if (calls.length === 0) {
         finalText = result.text;
+        agentSpan?.end('ok', { iterations });
         yield { type: 'final', text: finalText, usage: total, costUsd: totalCostUsd, iterations };
         return done();
       }
@@ -110,7 +139,9 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
       for (const call of calls) {
         throwIfAborted(opts.signal);
         yield { type: 'tool_call', id: call.id, name: call.name, input: call.input };
+        const toolSpan = opts.trace?.startSpan(`tool:${call.name}`, 'tool', { name: call.name, input: call.input }, agentSpan?.id);
         const { output, isError } = await runTool(toolMap, call, opts.signal);
+        toolSpan?.end(isError ? 'error' : 'ok', { output });
         yield { type: 'tool_result', id: call.id, name: call.name, output, isError };
         resultBlocks.push({
           type: 'tool_result',
@@ -124,9 +155,11 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
 
     // Cap reached with tools still pending.
     stoppedAtCap = true;
+    agentSpan?.end('ok', { iterations, stoppedAtCap: true });
     yield { type: 'final', text: finalText, usage: total, costUsd: totalCostUsd, iterations };
     return done();
   } catch (err) {
+    agentSpan?.fail(err);
     yield { type: 'error', error: err instanceof Error ? err.message : String(err) };
     throw err;
   }
