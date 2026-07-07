@@ -4,7 +4,7 @@
 
 Anvil is a Node.js backend framework for AI & GenAI developers: Express-level flexibility, Next.js-style file-based routing, compile-time route/schema validation, and a native agentic layer — MCP exposure, tool registry, agent orchestration, tracing — built into the framework core.
 
-**Status: pre-alpha.** M0 (routing), M1 (compile-time validation), and M2 (MCP auto-exposure + tool registry) are implemented. See [PRD.md](./PRD.md) for the full roadmap.
+**Status: pre-alpha.** M0 (routing), M1 (compile-time validation), M2 (MCP auto-exposure + tool registry), and M3-A (provider-agnostic model client) are implemented. See [PRD.md](./PRD.md) for the full roadmap.
 
 ## Quick start
 

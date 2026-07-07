@@ -1,6 +1,21 @@
-/**
- * Provider-agnostic model client (PRD §6.4) — lands in M3.
- * Thin driver abstraction over the official Anthropic/OpenAI SDKs with
- * fallback chains, retries, cost tracking, and abort propagation.
- */
-export const MODULE_STATUS = 'planned:M3' as const;
+export { LlmClient } from './client.js';
+export type { LlmClientOptions, TraceEvent, GenerateObjectResult } from './client.js';
+export { MockDriver, flakyScript } from './drivers/mock.js';
+export type { MockDriverOptions, MockResponse } from './drivers/mock.js';
+export { AnthropicDriver } from './drivers/anthropic.js';
+export type { AnthropicDriverOptions, AnthropicLike } from './drivers/anthropic.js';
+export { OpenAIDriver } from './drivers/openai.js';
+export type { OpenAIDriverOptions, OpenAILike } from './drivers/openai.js';
+export { computeCost, registerPricing, getPricing } from './cost.js';
+export type { ModelPricing } from './cost.js';
+export { RetryableModelError } from './types.js';
+export type {
+  ModelDriver,
+  ModelMessage,
+  Role,
+  GenerateRequest,
+  GenerateResult,
+  Usage,
+  ResponseFormat,
+  StreamEvent,
+} from './types.js';
