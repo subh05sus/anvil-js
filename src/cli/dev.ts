@@ -14,11 +14,7 @@ export interface DevOptions {
 export async function devCommand(options: DevOptions): Promise<void> {
   const routesDir = path.resolve(options.routes);
 
-  // jiti with caches disabled so edited route files re-import fresh on reload.
-  const jiti = createJiti(import.meta.url, { moduleCache: false, fsCache: false, interopDefault: false });
-  const importer = (file: string) => jiti.import(file);
-
-  let app: App = await buildApp(routesDir, importer, true);
+  let app: App = await buildApp(routesDir, true);
 
   const server = await serve(() => app, { port: options.port, hostname: options.hostname });
   console.log(`[anvil] dev server listening on http://localhost:${server.port}`);
@@ -30,7 +26,7 @@ export async function devCommand(options: DevOptions): Promise<void> {
       clearTimeout(reloadTimer);
       reloadTimer = setTimeout(async () => {
         try {
-          app = await buildApp(routesDir, importer);
+          app = await buildApp(routesDir);
           console.log('[anvil] routes reloaded');
         } catch (err) {
           // Keep serving the last good route table; surface the compile error.
@@ -40,11 +36,12 @@ export async function devCommand(options: DevOptions): Promise<void> {
     });
 }
 
-async function buildApp(
-  routesDir: string,
-  importer: (file: string) => Promise<unknown>,
-  printRoutes = false,
-): Promise<App> {
+async function buildApp(routesDir: string, printRoutes = false): Promise<App> {
+  // A fresh jiti instance per reload: module cache ON so singletons shared
+  // across route files (e.g. a shared trace store) resolve to one instance
+  // within a build pass; the new instance per reload re-reads edited files.
+  const jiti = createJiti(import.meta.url, { fsCache: false, interopDefault: false });
+  const importer = (file: string) => jiti.import(file);
   const manifest = await loadManifest(routesDir, importer);
   if (printRoutes) {
     for (const route of manifest.routes) {

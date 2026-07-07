@@ -2,6 +2,7 @@ import { defineAgent } from 'anvil/agent';
 import { LlmClient, MockDriver } from 'anvil/llm';
 import { z } from 'zod';
 import { USERS } from '../users/data';
+import { tracer } from '../../trace';
 
 // A demo agent. Uses the MockDriver so it runs with no API key; swap in
 // `new AnthropicDriver({ apiKey })` for a real model. `anvil dev` mounts this
@@ -18,6 +19,7 @@ const client = new LlmClient({
 
 export default defineAgent({
   client,
+  tracer, // every run shows up at /_anvil
   system: 'You are a helpful assistant for the Anvil example API.',
   tools: [
     {

@@ -4,4 +4,8 @@ export { MemoryTraceStore } from './memory-store.js';
 export { SqliteTraceStore } from './sqlite-store.js';
 export { CostGovernor, BudgetExceededError } from './governor.js';
 export type { BudgetConfig, BreachAction } from './governor.js';
+export { dashboardMiddleware } from './dashboard.js';
+export type { DashboardOptions } from './dashboard.js';
+export { traceToOtelSpans, otlpHttpExporter } from './otel.js';
+export type { OtlpExporterOptions, OtlpResourceSpans, OtlpSpan, OtlpAttribute } from './otel.js';
 export type { Span, Trace, SpanKind, SpanStatus, TraceStore, ListTracesOptions } from './types.js';
