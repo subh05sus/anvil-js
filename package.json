@@ -66,10 +66,12 @@
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.30.0",
+    "@google/generative-ai": ">=0.21.0",
     "openai": ">=4.0.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": { "optional": true },
+    "@google/generative-ai": { "optional": true },
     "openai": { "optional": true }
   },
   "devDependencies": {

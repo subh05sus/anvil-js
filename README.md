@@ -80,8 +80,10 @@ import { z } from 'zod';
 const client = new LlmClient({
   drivers: [new AnthropicDriver({ apiKey: process.env.ANTHROPIC_API_KEY })],
   defaultModel: 'claude-opus-4-8',
-  fallback: ['gpt-4o'], // requires an OpenAIDriver too
+  fallback: ['gpt-4o'], // add an OpenAIDriver (or 'gemini-2.5-flash' + GeminiDriver)
 });
+// Drivers ship for Anthropic (`claude-*`), OpenAI (`gpt-*`/`o*`), and Google
+// Gemini (`gemini-*`); the SDKs are optional peer deps, loaded lazily.
 
 export default defineAgent({
   client,
