@@ -64,6 +64,14 @@
     "./schedule": {
       "types": "./dist/schedule/index.d.ts",
       "import": "./dist/schedule/index.js"
+    },
+    "./a2a": {
+      "types": "./dist/a2a/index.d.ts",
+      "import": "./dist/a2a/index.js"
+    },
+    "./sandbox": {
+      "types": "./dist/sandbox/index.d.ts",
+      "import": "./dist/sandbox/index.js"
     }
   },
   "files": [

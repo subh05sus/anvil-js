@@ -16,6 +16,8 @@ export default defineConfig({
     'memory/index': 'src/memory/index.ts',
     'rag/index': 'src/rag/index.ts',
     'schedule/index': 'src/schedule/index.ts',
+    'a2a/index': 'src/a2a/index.ts',
+    'sandbox/index': 'src/sandbox/index.ts',
   },
   format: ['esm'],
   target: 'node20',
