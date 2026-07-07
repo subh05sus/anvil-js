@@ -13,6 +13,8 @@ export default defineConfig({
     'tools/index': 'src/tools/index.ts',
     'eval/index': 'src/eval/index.ts',
     'prompt/index': 'src/prompt/index.ts',
+    'memory/index': 'src/memory/index.ts',
+    'rag/index': 'src/rag/index.ts',
   },
   format: ['esm'],
   target: 'node20',
