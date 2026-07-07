@@ -2,6 +2,8 @@
 
 > **Express for humans. Anvil for agents.**
 
+<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/44cc2422-80a6-40a5-88ad-9e92b729def4" />
+
 Anvil is a Node.js backend framework for AI & GenAI developers. It's Express-level flexible, with Next.js-style file-based routing and full compile-time schema validation — and every route is automatically **type-safe, MCP-usable, A2A-usable, traced, cost-governed, and crash-resumable**, with zero extra code.
 
 Not a chatbot template. Not an AI SDK wrapper. It's a general-purpose HTTP framework where the agentic layer — MCP exposure, tool registry, agent orchestration, observability, durability, guardrails — is built into the framework core instead of hand-wired on top of Express.
