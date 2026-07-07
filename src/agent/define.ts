@@ -8,6 +8,7 @@ import type { Tracer, TraceHandle } from '../trace/tracer.js';
 import { toDataStreamResponse } from './datastream.js';
 import { streamAgent, type AgentEvent, type AgentTool } from './runtime.js';
 import type { Guardrail } from './guardrails.js';
+import { assembleContext, lastUserText, type ContextStep } from './context.js';
 
 const LLM_STATE_KEY = 'llm';
 
@@ -39,6 +40,8 @@ export interface DefineAgentConfig {
   budget?: BudgetConfig;
   /** Policy layer: output filtering + tool-call gating (PRD §6.14, §6.21). */
   guardrails?: Guardrail[];
+  /** Context assembly pipeline (PRD §6.8): RAG, trimming, system injection — runs before the loop. */
+  context?: ContextStep[];
   /** Extract the conversation from the request. Default: `body.messages` (AI SDK chat shape). */
   getMessages?: (ctx: Context) => ModelMessage[] | Promise<ModelMessage[]>;
 }
@@ -56,12 +59,24 @@ export function defineAgent(config: DefineAgentConfig): Handler {
       throw new HttpError(500, 'No LlmClient available: pass one to defineAgent or add withLlm() middleware.');
     }
 
-    const messages = config.getMessages ? await config.getMessages(ctx) : await defaultGetMessages(ctx);
-    const system = typeof config.system === 'function' ? await config.system(ctx) : config.system;
+    const rawMessages = config.getMessages ? await config.getMessages(ctx) : await defaultGetMessages(ctx);
+    const baseSystem = typeof config.system === 'function' ? await config.system(ctx) : config.system;
     const tools = typeof config.tools === 'function' ? await config.tools(ctx) : config.tools;
 
     const trace = config.tracer?.start(resolveTraceName(config, ctx), { route: ctx.path, method: ctx.method });
     const governor = config.budget ? new CostGovernor(config.budget) : undefined;
+
+    // Assemble context (RAG / trimming / system injection) before the loop.
+    let messages = rawMessages;
+    let system = baseSystem;
+    if (config.context?.length) {
+      const assembled = await assembleContext(
+        { messages: rawMessages, system: baseSystem, query: lastUserText(rawMessages), trace },
+        config.context,
+      );
+      messages = assembled.messages;
+      system = assembled.system;
+    }
 
     const events = streamAgent({
       client,

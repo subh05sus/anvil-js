@@ -243,6 +243,73 @@ export class Retriever {
   }
 }
 
+// ── Semantic cache ──────────────────────────────────────────────────
+
+export interface SemanticCacheOptions {
+  embedder: Embedder;
+  /** Minimum cosine similarity to count as a hit. Default 0.95. */
+  threshold?: number;
+  /** Backing store for cached (embedding, response) pairs. Default in-memory. */
+  store?: VectorStore;
+  /** Entry lifetime in ms. Default: no expiry. */
+  ttlMs?: number;
+}
+
+export interface CacheLookup {
+  hit: boolean;
+  value?: string;
+  score?: number;
+}
+
+/**
+ * Response cache keyed on embedding similarity rather than exact string match
+ * (PRD §6.11) — for expensive/repeated LLM calls. Cache hits/misses are
+ * recorded as trace spans so hit rate is visible in the dashboard.
+ */
+export class SemanticCache {
+  #embedder: Embedder;
+  #threshold: number;
+  #store: VectorStore;
+  #ttlMs?: number;
+  #counter = 0;
+
+  constructor(options: SemanticCacheOptions) {
+    this.#embedder = options.embedder;
+    this.#threshold = options.threshold ?? 0.95;
+    this.#store = options.store ?? new MemoryVectorStore();
+    this.#ttlMs = options.ttlMs;
+  }
+
+  async get(prompt: string, opts: { trace?: TraceHandle; parentSpanId?: string; now?: number } = {}): Promise<CacheLookup> {
+    const span = opts.trace?.startSpan('cache', 'cache', { threshold: this.#threshold }, opts.parentSpanId);
+    const [embedding] = await this.#embedder.embed([prompt]);
+    const [top] = await this.#store.query(embedding!, 1);
+    const now = opts.now ?? Date.now();
+    const fresh = top && (this.#ttlMs === undefined || now - Number(top.metadata?.at ?? 0) <= this.#ttlMs);
+    const hit = !!top && fresh && top.score >= this.#threshold;
+    span?.end('ok', { hit, score: top?.score });
+    return hit ? { hit: true, value: top.text, score: top.score } : { hit: false, score: top?.score };
+  }
+
+  async set(prompt: string, value: string, now = Date.now()): Promise<void> {
+    const [embedding] = await this.#embedder.embed([prompt]);
+    await this.#store.add([{ id: `cache-${this.#counter++}`, text: value, embedding: embedding!, metadata: { prompt, at: now } }]);
+  }
+
+  /** Return the cached response for `prompt`, or run `produce`, cache it, and return it. */
+  async wrap(
+    prompt: string,
+    produce: () => Promise<string>,
+    opts: { trace?: TraceHandle; parentSpanId?: string } = {},
+  ): Promise<{ value: string; cached: boolean }> {
+    const found = await this.get(prompt, opts);
+    if (found.hit) return { value: found.value!, cached: true };
+    const value = await produce();
+    await this.set(prompt, value);
+    return { value, cached: false };
+  }
+}
+
 // ── math/util ───────────────────────────────────────────────────────
 
 function tokenize(text: string): string[] {

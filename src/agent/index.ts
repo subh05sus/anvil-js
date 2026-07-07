@@ -6,6 +6,8 @@ export { contentFilter, redactPII, toolPolicy, injectionGuard, GuardrailError, a
 export type { Guardrail, ToolDecision, ToolCallContext, TextContext, ContentFilterOptions, ToolPolicyOptions, InjectionGuardOptions } from './guardrails.js';
 export { ReplayDriver, buildReplayFromTrace, replayAgent, replayToResult } from './replay.js';
 export type { Replayable } from './replay.js';
+export { assembleContext, lastUserText, retrievalContext, tokenBudget, systemContext } from './context.js';
+export type { ContextStep, ContextInput, ContextPatch, AssembledContext, RetrievalContextOptions } from './context.js';
 export { defineAgent, withLlm, getLlm } from './define.js';
 export type { DefineAgentConfig } from './define.js';
 export { toDataStreamResponse, encodeDataStreamPart } from './datastream.js';
