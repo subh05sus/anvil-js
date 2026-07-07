@@ -8,6 +8,8 @@ export { ReplayDriver, buildReplayFromTrace, replayAgent, replayToResult } from 
 export type { Replayable } from './replay.js';
 export { assembleContext, lastUserText, retrievalContext, tokenBudget, systemContext } from './context.js';
 export type { ContextStep, ContextInput, ContextPatch, AssembledContext, RetrievalContextOptions } from './context.js';
+export { AgentRegistry, agentAsTool, withAgents, getAgents, callAgent } from './orchestrate.js';
+export type { AgentConfig, AgentAsToolOptions } from './orchestrate.js';
 export { defineAgent, withLlm, getLlm } from './define.js';
 export type { DefineAgentConfig } from './define.js';
 export { toDataStreamResponse, encodeDataStreamPart } from './datastream.js';

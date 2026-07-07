@@ -15,6 +15,7 @@ export default defineConfig({
     'prompt/index': 'src/prompt/index.ts',
     'memory/index': 'src/memory/index.ts',
     'rag/index': 'src/rag/index.ts',
+    'schedule/index': 'src/schedule/index.ts',
   },
   format: ['esm'],
   target: 'node20',
