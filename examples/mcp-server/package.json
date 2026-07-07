@@ -1,0 +1,15 @@
+{
+  "name": "example-mcp-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "mcp": "anvil mcp",
+    "mcp:stdio": "anvil mcp --stdio",
+    "lint": "anvil lint",
+    "dev": "anvil dev"
+  },
+  "dependencies": {
+    "anvil": "file:../..",
+    "zod": "^3.23.8"
+  }
+}

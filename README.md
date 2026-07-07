@@ -2,17 +2,58 @@
 
 > **Express for humans. Anvil for agents.**
 
-Anvil is a Node.js backend framework for AI & GenAI developers: Express-level flexibility, Next.js-style file-based routing, compile-time route/schema validation, and a native agentic layer — MCP exposure, tool registry, agent orchestration, tracing — built into the framework core.
+Anvil is a Node.js backend framework for AI & GenAI developers. It's Express-level flexible, with Next.js-style file-based routing and full compile-time schema validation — and every route is automatically **type-safe, MCP-usable, A2A-usable, traced, cost-governed, and crash-resumable**, with zero extra code.
 
-**Status: pre-alpha.** M0–M8 implemented: routing, compile-time validation, MCP auto-exposure + tool registry, model client + agent routes, observability (tracing, `/_anvil` dashboard, cost governor, OTel export), durability + safety (durable checkpointing, human-in-the-loop, guardrails + prompt-injection taint layer), evals + prompt registry + trace replay, memory + RAG + semantic cache + context assembly, and protocol + background surface (scheduled/triggered agents, multi-agent orchestration, A2A protocol, sandboxed execution). Only M9 (launch: docs, examples, marketing) remains. See [PRD.md](./PRD.md) for the full roadmap.
+Not a chatbot template. Not an AI SDK wrapper. It's a general-purpose HTTP framework where the agentic layer — MCP exposure, tool registry, agent orchestration, observability, durability, guardrails — is built into the framework core instead of hand-wired on top of Express.
+
+```ts
+// server/routes/users/[id]/get.ts
+export const meta = { mcp: { expose: true, description: 'Fetch a user by ID' } };
+export const paramsSchema = z.object({ id: z.string() });
+
+export default function handler(ctx) {
+  return findUser(ctx.params.id);
+}
+```
+
+That one file is now `GET /users/:id`, an MCP tool (`anvil mcp`), and an A2A skill — the same handler, the same schema, checked at build time, no duplication.
+
+**Status: pre-alpha, all planned milestones shipped.** M0–M8 implemented and tested (204+ tests). M9 (this README, docs, examples) is in progress. See [PRD.md](./PRD.md) for the full design doc and milestone history.
+
+---
 
 ## Quick start
 
 ```bash
-npm install
-npm run build
-npm test
+npm install anvil zod
+npx anvil dev     # dev server, hot reload
+npx anvil build   # generate the manifest + production bundle
+npx anvil start   # run it
 ```
+
+Or try a working example in under a minute:
+
+```bash
+cd examples/basic-api && npm install && npx anvil dev
+```
+
+## What's in the box
+
+| Layer | What you get |
+|---|---|
+| **Routing** | File-based routes (`[id]`, `[...catchall]`, `(groups)`, scoped `_middleware.ts`), Express-parity static files/CORS, radix-tree matching |
+| **Compile-time validation** | `anvil lint` — params match schemas, MCP-exposed schemas serialize losslessly, structural route conflicts fail the build (not the request) |
+| **MCP & A2A** | `anvil mcp` (Streamable HTTP + stdio), `anvil/a2a` — one route/tool definition, three protocols |
+| **Agents** | `defineAgent`, tool-calling loop with iteration caps, Vercel AI SDK streaming, abort-on-disconnect |
+| **Model client** | `LlmClient` over Anthropic / OpenAI / Gemini (lazy, optional peer deps), fallback chains, retries, cost tracking, structured output |
+| **Observability** | Trace tree per run, bundled `/_anvil` dashboard, cost governor, OpenTelemetry GenAI export |
+| **Durability & safety** | Crash-resumable checkpointing (no double side-effects), human-in-the-loop approval, guardrails, prompt-injection taint layer |
+| **Evals & replay** | `anvil eval` (deterministic + LLM-as-judge), versioned prompt registry, `anvil replay <traceId>` with zero live calls |
+| **Memory & RAG** | `ctx.memory`, chunking + embeddings + vector store + traced retrieval, embedding-similarity semantic cache |
+| **Background & multi-agent** | Scheduled (cron) and event-triggered agents, `AgentRegistry`/`callAgent` delegation |
+| **Sandbox** | `worker_threads` + `vm`-isolated code execution for agent-written code (documented threat model) |
+
+Full docs: **[docs/](./docs/README.md)**. Working examples: **[basic-api](./examples/basic-api)** · **[mcp-server](./examples/mcp-server)** · **[agent-hitl](./examples/agent-hitl)**.
 
 ## File-based routing
 
@@ -22,7 +63,7 @@ server/routes/
   users/
     _middleware.ts        → scoped middleware for /users/**
     get.ts                → GET /users
-    post.ts               → POST /users
+    post.ts                → POST /users
     [id]/
       get.ts              → GET /users/:id
   files/
@@ -31,9 +72,9 @@ server/routes/
   (admin)/                → route group, not part of the URL
     dashboard/
       get.ts              → GET /dashboard
+  chat/
+    agent.ts              → POST /chat, an agent route (see below)
 ```
-
-A handler:
 
 ```ts
 import type { Context } from 'anvil';
@@ -45,36 +86,20 @@ export default async function handler(ctx: Context) {
 
 ## CLI
 
-- `anvil dev` — dev server with watch mode (TypeScript routes loaded on the fly)
-- `anvil build` — generates the static route manifest (`.gen/routes.ts`) and bundles `dist/server.mjs`
-- `anvil start` — runs the production bundle
-- `anvil lint` — validates routes: `paramsSchema` keys match folder params, and any schema on an MCP-exposed route converts losslessly to JSON Schema (`--strict` fails on warnings too)
-- `anvil mcp` — serves `meta.mcp.expose` routes and `server/tools/` as an MCP server over Streamable HTTP (`--stdio` for local clients like Claude Desktop)
-- `anvil eval <file>` — runs an eval suite (deterministic assertions + LLM-as-judge) against an agent; exits non-zero on failure
-- `anvil replay <traceId>` — re-runs a captured agent trace with mocked model responses (no live calls, no re-fired side effects)
-
-## MCP: any route is also a tool
-
-Mark a route exposed and it becomes an MCP tool — same handler, no second codebase:
-
-```ts
-export const meta = { mcp: { expose: true, description: 'Fetch a user by ID' } };
-export const paramsSchema = z.object({ id: z.string() });
-export default (ctx) => findUser(ctx.params.id);
-```
-
-```
-anvil mcp                 # Streamable HTTP on :3100/mcp
-anvil mcp --stdio         # for Claude Desktop et al.
-```
-
-Standalone tools live in `server/tools/*.ts` (a `default` function + `inputSchema`) and are served from the same command.
+| Command | Does |
+|---|---|
+| `anvil dev` | Dev server, hot reload, TypeScript routes loaded on the fly |
+| `anvil build` | Static route manifest + production bundle |
+| `anvil start` | Runs the production bundle |
+| `anvil lint` | Params/schema validation; MCP-schema serializability (`--strict` fails on warnings too) |
+| `anvil mcp [--stdio]` | Serves exposed routes + `server/tools/` as an MCP server |
+| `anvil eval <file>` | Runs an eval suite against an agent; non-zero exit on failure |
+| `anvil replay <traceId>` | Re-runs a captured trace with mocked model responses |
 
 ## Agent routes
 
-An `agent.ts` file is an agent route — served over POST, streaming the Vercel AI SDK data stream protocol (so `useChat` works against it directly):
-
 ```ts
+// server/routes/chat/agent.ts
 import { defineAgent } from 'anvil/agent';
 import { LlmClient, AnthropicDriver } from 'anvil/llm';
 import { z } from 'zod';
@@ -84,25 +109,24 @@ const client = new LlmClient({
   defaultModel: 'claude-opus-4-8',
   fallback: ['gpt-4o'], // add an OpenAIDriver (or 'gemini-2.5-flash' + GeminiDriver)
 });
-// Drivers ship for Anthropic (`claude-*`), OpenAI (`gpt-*`/`o*`), and Google
-// Gemini (`gemini-*`); the SDKs are optional peer deps, loaded lazily.
 
 export default defineAgent({
   client,
   system: 'You are a helpful assistant.',
   tools: [
-    {
-      name: 'get_weather',
-      description: 'Get weather for a city',
-      zodSchema: z.object({ city: z.string() }),
-      execute: ({ city }) => fetchWeather(city),
-    },
+    { name: 'get_weather', description: 'Get weather for a city', zodSchema: z.object({ city: z.string() }), execute: ({ city }) => fetchWeather(city) },
   ],
 });
 ```
 
-The runtime runs the model↔tool loop (with an iteration cap), validates each tool's input against its Zod schema, tracks token usage and cost, and aborts the whole run — model call and tool execution — when the client disconnects.
+Served over `POST`, streaming the **Vercel AI SDK data-stream protocol** (`useChat` works against it directly). The runtime runs the model↔tool loop with an iteration cap, validates each tool's input against its Zod schema, tracks usage/cost, and aborts the whole run — model call and tool execution — on client disconnect.
 
-## Roadmap (from PRD)
+Add durability, human approval, and policy with a few more options — see **[docs/agents.md](./docs/agents.md)** and **[docs/durability-safety.md](./docs/durability-safety.md)**.
 
-M0 routing ✅ → M1 compile-time validation → M2 MCP auto-exposure + tool registry → M3 LLM client + agent routes → M4 observability dashboard → M5 durability + HITL + guardrails → M6 evals + prompt registry + replay → M7 memory + RAG → M8 A2A + scheduled agents + sandbox → M9 launch.
+## Why not just Express + an MCP SDK + LangChain?
+
+Because then you're maintaining three schemas for one endpoint (REST validation, tool-calling schema, MCP tool definition), a hand-rolled trace format, your own crash-recovery for agent loops, and a bespoke approval flow for anything that touches money or PII. Anvil's bet: this is framework-layer work, done once, the way Next.js did routing once instead of every app reinventing it. See [PRD.md](./PRD.md) §12 for the fuller comparison.
+
+## Contributing / status
+
+This is a from-scratch reference implementation tracking the PRD milestone-by-milestone (17+ commits, M0 through M8). Everything above is implemented and tested — not a roadmap promise. Known gaps before a 1.0: deep ts-morph handler-body lint rules, true token-level streaming from the model drivers (currently chunked), a `sqlite-vec` ANN adapter, and a container-based sandbox adapter for untrusted code. The npm package name `anvil` is a placeholder — expect it to change before publish.

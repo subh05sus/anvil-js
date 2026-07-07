@@ -3,6 +3,7 @@ import type { Context } from '../kernel/context.js';
 import type { Handler, Middleware } from '../kernel/types.js';
 import type { LlmClient } from '../llm/client.js';
 import type { ModelMessage } from '../llm/types.js';
+import type { StateStore } from '../store/index.js';
 import { CostGovernor, type BudgetConfig } from '../trace/governor.js';
 import type { Tracer, TraceHandle } from '../trace/tracer.js';
 import { toDataStreamResponse } from './datastream.js';
@@ -44,6 +45,8 @@ export interface DefineAgentConfig {
   context?: ContextStep[];
   /** Extract the conversation from the request. Default: `body.messages` (AI SDK chat shape). */
   getMessages?: (ctx: Context) => ModelMessage[] | Promise<ModelMessage[]>;
+  /** Durable checkpointing (PRD §6.20) / HITL (§6.7). Resolve a run id per request to checkpoint against `store`. */
+  checkpoint?: { store: StateStore; getRunId: (ctx: Context) => string | Promise<string> };
 }
 
 /**
@@ -65,6 +68,7 @@ export function defineAgent(config: DefineAgentConfig): Handler {
 
     const trace = config.tracer?.start(resolveTraceName(config, ctx), { route: ctx.path, method: ctx.method });
     const governor = config.budget ? new CostGovernor(config.budget) : undefined;
+    const checkpoint = config.checkpoint ? { store: config.checkpoint.store, runId: await config.checkpoint.getRunId(ctx) } : undefined;
 
     // Assemble context (RAG / trimming / system injection) before the loop.
     let messages = rawMessages;
@@ -89,6 +93,7 @@ export function defineAgent(config: DefineAgentConfig): Handler {
       trace,
       governor,
       guardrails: config.guardrails,
+      checkpoint,
     });
 
     const stream = trace ? closeTraceAfter(events, trace, ctx.req.signal) : events;
