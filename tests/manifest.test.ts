@@ -28,7 +28,7 @@ describe('generateManifest', () => {
     expect(code).toContain(`pattern: "/users/[id]"`);
     expect(code).toContain(`method: 'GET'`);
     expect(code).toContain('fallbackMiddleware: flat(');
-    expect(code).toContain(`from 'anvil-js'`);
+    expect(code).toContain(`from 'anvil-sdk'`);
     // Each route imported as a namespace so meta comes along.
     expect(code).toMatch(/import \* as r\d+ from '\.\.?\/.*get\.ts'/);
   });

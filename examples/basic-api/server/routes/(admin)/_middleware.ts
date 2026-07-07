@@ -1,4 +1,4 @@
-import { HttpError, type Middleware } from 'anvil-js';
+import { HttpError, type Middleware } from 'anvil-sdk';
 
 const requireAdmin: Middleware = async (ctx, next) => {
   if (ctx.headers.get('x-admin-token') !== 'letmein') {

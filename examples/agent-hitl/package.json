@@ -6,7 +6,7 @@
     "dev": "anvil dev"
   },
   "dependencies": {
-    "anvil-js": "file:../..",
+    "anvil-sdk": "file:../..",
     "zod": "^3.23.8"
   }
 }

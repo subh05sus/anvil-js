@@ -16,7 +16,7 @@ Route matching precedence is structural: **static > dynamic > catch-all**, with 
 ## Handlers
 
 ```ts
-import type { Context } from 'anvil-js';
+import type { Context } from 'anvil-sdk';
 
 export default async function handler(ctx: Context) {
   ctx.params;           // route params, typed by folder structure
@@ -32,7 +32,7 @@ export default async function handler(ctx: Context) {
 `_middleware.ts` exports a function (or array of functions) run around every route beneath it, outermost-first:
 
 ```ts
-import type { Middleware } from 'anvil-js';
+import type { Middleware } from 'anvil-sdk';
 
 const auth: Middleware = async (ctx, next) => {
   if (!ctx.headers.get('authorization')) throw new HttpError(401);
@@ -45,14 +45,14 @@ export default auth;
 A **root** `_middleware.ts` also runs for unmatched paths — this is where static file serving and dashboards mount:
 
 ```ts
-import { serveStatic } from 'anvil-js';
+import { serveStatic } from 'anvil-sdk';
 export default [logger, serveStatic({ dir: 'public' })];
 ```
 
 ## Errors
 
 ```ts
-import { HttpError } from 'anvil-js';
+import { HttpError } from 'anvil-sdk';
 throw new HttpError(404, 'Not found');       // exposed to the client
 throw new HttpError(500, 'internal detail'); // 5xx messages are hidden unless dev mode
 ```

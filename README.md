@@ -29,7 +29,7 @@ Core routing, MCP/A2A exposure, agent runtime, observability, durability, evals,
 ```bash
 mkdir my-api && cd my-api
 npm init -y
-npm install anvil-js zod
+npm install anvil-sdk zod
 npx anvil init      # scaffolds package.json scripts, tsconfig, and a starter route
 npm install
 npx anvil dev       # dev server, hot reload
@@ -83,7 +83,7 @@ server/routes/
 ```
 
 ```ts
-import type { Context } from 'anvil-js';
+import type { Context } from 'anvil-sdk';
 
 export default async function handler(ctx: Context) {
   return { id: ctx.params.id }; // plain objects auto-serialize to JSON
@@ -107,8 +107,8 @@ export default async function handler(ctx: Context) {
 
 ```ts
 // server/routes/chat/agent.ts
-import { defineAgent } from 'anvil-js/agent';
-import { LlmClient, AnthropicDriver } from 'anvil-js/llm';
+import { defineAgent } from 'anvil-sdk/agent';
+import { LlmClient, AnthropicDriver } from 'anvil-sdk/llm';
 import { z } from 'zod';
 
 const client = new LlmClient({

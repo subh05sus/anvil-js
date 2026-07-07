@@ -1,4 +1,4 @@
-import { HttpError, type Context } from 'anvil-js';
+import { HttpError, type Context } from 'anvil-sdk';
 
 export default async function handler(ctx: Context) {
   const body = await ctx.body<{ name?: string }>();

@@ -3,7 +3,7 @@
 ## Session memory
 
 ```ts
-import { withMemory, getMemory } from 'anvil-js/memory';
+import { withMemory, getMemory } from 'anvil-sdk/memory';
 // root _middleware.ts:
 export default [withMemory(stateStore)]; // namespaced per x-session-id header by default
 
@@ -18,7 +18,7 @@ Typed `get`/`set`/`append`/`delete`/`keys` over the pluggable state store — no
 ## RAG
 
 ```ts
-import { HashEmbedder, MemoryVectorStore, Retriever, chunkText } from 'anvil-js/rag';
+import { HashEmbedder, MemoryVectorStore, Retriever, chunkText } from 'anvil-sdk/rag';
 
 const retriever = new Retriever({ embedder: new HashEmbedder(), store: new MemoryVectorStore() });
 await retriever.index([{ id: 'faq', text: '...long document...' }]); // chunked + embedded automatically
@@ -30,14 +30,14 @@ const results = await retriever.retrieve('how do refunds work?', { topK: 4, trac
 Wire retrieval into an agent via the [context assembly pipeline](./agents.md#context-assembly):
 
 ```ts
-import { retrievalContext } from 'anvil-js/agent';
+import { retrievalContext } from 'anvil-sdk/agent';
 export default defineAgent({ client, context: [retrievalContext(retriever, { topK: 4 })] });
 ```
 
 ## Semantic cache
 
 ```ts
-import { SemanticCache } from 'anvil-js/rag';
+import { SemanticCache } from 'anvil-sdk/rag';
 
 const cache = new SemanticCache({ embedder: new HashEmbedder(), threshold: 0.95, ttlMs: 60_000 });
 const { value, cached } = await cache.wrap(prompt, () => expensiveLlmCall(prompt), { trace });

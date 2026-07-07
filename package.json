@@ -1,9 +1,33 @@
 {
-  "name": "anvil-js",
+  "name": "anvil-sdk",
   "version": "1.0.0",
   "description": "Express for humans. Anvil for agents. Node backend framework with file-based routing, compile-time validation, and a native agentic layer (MCP, tools, tracing).",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://anvil.thatdevguy.in",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/subh05sus/anvil-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/subh05sus/anvil-js/issues"
+  },
+  "keywords": [
+    "anvil",
+    "backend",
+    "framework",
+    "http",
+    "router",
+    "file-based-routing",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "agents",
+    "llm",
+    "ai",
+    "typescript",
+    "express-alternative"
+  ],
   "engines": {
     "node": ">=20.0.0"
   },

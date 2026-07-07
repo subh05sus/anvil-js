@@ -122,7 +122,7 @@ async function writePackageJson(dir: string, template: ReturnType<typeof getTemp
   pkg.type = 'module';
   pkg.scripts = { ...BASE_SCRIPTS, ...template.extraScripts, ...pkg.scripts };
   pkg.dependencies = {
-    'anvil-js': ANVIL_VERSION,
+    'anvil-sdk': ANVIL_VERSION,
     zod: ZOD_VERSION,
     ...template.extraDependencies,
     ...pkg.dependencies, // preserve existing pinned versions

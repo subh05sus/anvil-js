@@ -5,7 +5,7 @@
 `LlmClient` (from `anvil/llm`) is a provider-agnostic wrapper over the official Anthropic, OpenAI, and Google Gemini SDKs (loaded lazily — install only the one you use):
 
 ```ts
-import { LlmClient, AnthropicDriver, OpenAIDriver } from 'anvil-js/llm';
+import { LlmClient, AnthropicDriver, OpenAIDriver } from 'anvil-sdk/llm';
 
 const client = new LlmClient({
   drivers: [new AnthropicDriver({ apiKey: process.env.ANTHROPIC_API_KEY }), new OpenAIDriver({ apiKey: process.env.OPENAI_API_KEY })],
@@ -25,7 +25,7 @@ Use `MockDriver` (from `anvil/llm`) for tests and demos — deterministic, scrip
 
 ```ts
 // server/routes/chat/agent.ts
-import { defineAgent } from 'anvil-js/agent';
+import { defineAgent } from 'anvil-sdk/agent';
 
 export default defineAgent({
   client,
@@ -42,7 +42,7 @@ export default defineAgent({
 ## The loop, directly
 
 ```ts
-import { runAgent, streamAgent } from 'anvil-js/agent';
+import { runAgent, streamAgent } from 'anvil-sdk/agent';
 
 const result = await runAgent({ client, messages, tools });
 // or, to observe events live:
@@ -54,7 +54,7 @@ Each tool call's input is validated against its `zodSchema` before `execute` run
 ## Context assembly
 
 ```ts
-import { assembleContext, retrievalContext, tokenBudget, systemContext } from 'anvil-js/agent';
+import { assembleContext, retrievalContext, tokenBudget, systemContext } from 'anvil-sdk/agent';
 
 export default defineAgent({
   client,
@@ -67,7 +67,7 @@ See [memory & retrieval](./memory-rag.md) for `Retriever` and `SemanticCache`.
 ## Multi-agent
 
 ```ts
-import { AgentRegistry, agentAsTool, callAgent, withAgents } from 'anvil-js/agent';
+import { AgentRegistry, agentAsTool, callAgent, withAgents } from 'anvil-sdk/agent';
 
 const registry = new AgentRegistry().register('researcher', { client, system: '...' });
 const orchestrator = defineAgent({ client, tools: [agentAsTool(registry, 'researcher')] });

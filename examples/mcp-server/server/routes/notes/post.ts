@@ -1,4 +1,4 @@
-import { HttpError, type Context } from 'anvil-js';
+import { HttpError, type Context } from 'anvil-sdk';
 import { z } from 'zod';
 import { NOTES } from './data';
 

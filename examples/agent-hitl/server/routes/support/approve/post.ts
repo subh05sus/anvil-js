@@ -1,6 +1,6 @@
-import { HttpError, type Context } from 'anvil-js';
-import { resumeAgent, type AgentTool } from 'anvil-js/agent';
-import { LlmClient, MockDriver } from 'anvil-js/llm';
+import { HttpError, type Context } from 'anvil-sdk';
+import { resumeAgent, type AgentTool } from 'anvil-sdk/agent';
+import { LlmClient, MockDriver } from 'anvil-sdk/llm';
 import { z } from 'zod';
 import { stateStore } from '../../../state';
 

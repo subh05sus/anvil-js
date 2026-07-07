@@ -3,7 +3,7 @@
 ## Install
 
 ```bash
-npm install anvil-js zod
+npm install anvil-sdk zod
 ```
 
 Anvil is ESM-only, Node ≥ 20. `zod` is a direct dependency of your route/tool schemas (Anvil re-exports the pieces it needs, but you'll write your own `z.object(...)` calls).
@@ -30,7 +30,7 @@ server/routes/
 
 ```ts
 // server/routes/users/[id]/get.ts
-import { HttpError, type Context } from 'anvil-js';
+import { HttpError, type Context } from 'anvil-sdk';
 
 export default function handler(ctx: Context) {
   const user = findUser(ctx.params.id);
@@ -64,8 +64,8 @@ npx anvil lint          # validates params/schemas, incl. MCP schema serializabi
 
 ```ts
 // server/routes/chat/agent.ts
-import { defineAgent } from 'anvil-js/agent';
-import { LlmClient, AnthropicDriver } from 'anvil-js/llm';
+import { defineAgent } from 'anvil-sdk/agent';
+import { LlmClient, AnthropicDriver } from 'anvil-sdk/llm';
 
 const client = new LlmClient({
   drivers: [new AnthropicDriver({ apiKey: process.env.ANTHROPIC_API_KEY })],

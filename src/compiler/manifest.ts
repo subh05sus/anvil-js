@@ -6,7 +6,7 @@ export interface GenerateOptions {
   routesDir: string;
   /** Output file, e.g. `.gen/routes.ts`. */
   outFile: string;
-  /** Import specifier for the framework. Default: 'anvil-js'. */
+  /** Import specifier for the framework. Default: 'anvil-sdk'. */
   frameworkSpecifier?: string;
 }
 
@@ -18,7 +18,7 @@ export async function generateManifest(options: GenerateOptions): Promise<{ rout
   const { routes, rootMiddlewareFile } = await scanRoutes(options.routesDir);
   const outFile = path.resolve(options.outFile);
   const outDir = path.dirname(outFile);
-  const framework = options.frameworkSpecifier ?? 'anvil-js';
+  const framework = options.frameworkSpecifier ?? 'anvil-sdk';
 
   const imports: string[] = [];
   const middlewareIds = new Map<string, string>();
