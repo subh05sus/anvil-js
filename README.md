@@ -4,7 +4,7 @@
 
 Anvil is a Node.js backend framework for AI & GenAI developers: Express-level flexibility, Next.js-style file-based routing, compile-time route/schema validation, and a native agentic layer — MCP exposure, tool registry, agent orchestration, tracing — built into the framework core.
 
-**Status: pre-alpha.** M0 (core routing engine) and M1 (compile-time validation) are implemented. See [PRD.md](./PRD.md) for the full roadmap.
+**Status: pre-alpha.** M0 (routing), M1 (compile-time validation), and M2 (MCP auto-exposure + tool registry) are implemented. See [PRD.md](./PRD.md) for the full roadmap.
 
 ## Quick start
 
@@ -49,6 +49,24 @@ export default async function handler(ctx: Context) {
 - `anvil build` — generates the static route manifest (`.gen/routes.ts`) and bundles `dist/server.mjs`
 - `anvil start` — runs the production bundle
 - `anvil lint` — validates routes: `paramsSchema` keys match folder params, and any schema on an MCP-exposed route converts losslessly to JSON Schema (`--strict` fails on warnings too)
+- `anvil mcp` — serves `meta.mcp.expose` routes and `server/tools/` as an MCP server over Streamable HTTP (`--stdio` for local clients like Claude Desktop)
+
+## MCP: any route is also a tool
+
+Mark a route exposed and it becomes an MCP tool — same handler, no second codebase:
+
+```ts
+export const meta = { mcp: { expose: true, description: 'Fetch a user by ID' } };
+export const paramsSchema = z.object({ id: z.string() });
+export default (ctx) => findUser(ctx.params.id);
+```
+
+```
+anvil mcp                 # Streamable HTTP on :3100/mcp
+anvil mcp --stdio         # for Claude Desktop et al.
+```
+
+Standalone tools live in `server/tools/*.ts` (a `default` function + `inputSchema`) and are served from the same command.
 
 ## Roadmap (from PRD)
 

@@ -1,7 +1,7 @@
 export { createApp } from './kernel/app.js';
 export type { App, AppOptions } from './kernel/app.js';
 export { serve, toWebRequest, writeResponse } from './kernel/adapter-node.js';
-export type { AnvilServer, ServeOptions } from './kernel/adapter-node.js';
+export type { AnvilServer, ServeOptions, Fetchable } from './kernel/adapter-node.js';
 export { Context, toResponse } from './kernel/context.js';
 export { compose } from './kernel/middleware.js';
 export { Router } from './kernel/router.js';

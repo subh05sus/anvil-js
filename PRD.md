@@ -242,7 +242,7 @@ Architectural invariants:
 
 1. **M0 — Core routing engine** ✅: filesystem scanner, manifest generation, web-standard kernel (router, context, middleware, Node adapter), CLI dev/build/start, Express-parity basics
 2. **M1 — Compile-time validation** ✅: `anvil lint` — param/schema key consistency, Zod→JSON-Schema convertibility checks (edge #2), MCP-exposure description warnings; scanner conflict/collision checks surfaced as diagnostics. (Deeper ts-morph handler-body analysis — e.g. `ctx.params.x` usage vs declared params — deferred to a later pass.)
-3. **M2 — MCP auto-exposure + tool registry**: `anvil mcp` (Streamable HTTP + stdio), schema inference, single-source tool definitions
+3. **M2 — MCP auto-exposure + tool registry** ✅: `anvil mcp` (Streamable HTTP + stdio), JSON-RPC server (initialize/tools.list/tools.call), tool registry from `meta.mcp.expose` routes + `server/tools/`, JSON-Schema inference via the M1 converter, Zod re-validation on call. (Protocol logic isolated behind the transport adapter per §11.)
 4. **M3 — Model client + agent routes**: `ctx.llm` driver abstraction, `agent.ts`, AI SDK-compatible streaming, abort propagation, structured output enforcement
 5. **M4 — Observability**: SQLite trace capture, `/_anvil` dashboard, OTel GenAI export, cost governor
 6. **M5 — Durability + safety**: HITL primitive, durable execution/checkpointing, guardrails/policy middleware, prompt injection defense

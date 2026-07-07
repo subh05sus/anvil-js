@@ -1,6 +1,5 @@
 import http from 'node:http';
 import { Readable } from 'node:stream';
-import type { App } from './app.js';
 
 export interface ServeOptions {
   port?: number;
@@ -13,12 +12,17 @@ export interface AnvilServer {
   close: () => Promise<void>;
 }
 
+/** Anything with a web-standard fetch handler — an Anvil App or a bare MCP handler. */
+export interface Fetchable {
+  fetch: (request: Request) => Promise<Response>;
+}
+
 /**
- * Bridge Node's http.Server to the app's web-standard fetch handler.
+ * Bridge Node's http.Server to a web-standard fetch handler.
  * The handler can be swapped at runtime (dev-server reloads) by passing
- * a getter instead of a fixed app.
+ * a getter instead of a fixed instance.
  */
-export function serve(app: App | (() => App), options: ServeOptions = {}): Promise<AnvilServer> {
+export function serve(app: Fetchable | (() => Fetchable), options: ServeOptions = {}): Promise<AnvilServer> {
   const getApp = typeof app === 'function' ? app : () => app;
 
   const server = http.createServer(async (req, res) => {

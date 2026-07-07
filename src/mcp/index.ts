@@ -1,7 +1,10 @@
-/**
- * MCP auto-exposure (PRD §6.1) — lands in M2.
- * Routes with `meta.mcp.expose = true` will be served as MCP tools over
- * Streamable HTTP (primary) and stdio, driven by the same route manifest
- * used by the HTTP router.
- */
-export const MODULE_STATUS = 'planned:M2' as const;
+export { buildToolset, routeToTool } from './tool.js';
+export type { Importer, ToolsetOptions } from './tool.js';
+export { McpServer } from './server.js';
+export type { McpServerInfo } from './server.js';
+export { mcpHttpHandler } from './http.js';
+export type { McpHttpOptions } from './http.js';
+export { serveStdio, processLine } from './stdio.js';
+export type { StdioOptions } from './stdio.js';
+export { PROTOCOL_VERSION } from './types.js';
+export type { ToolDefinition, JsonRpcRequest, JsonRpcResponse } from './types.js';
