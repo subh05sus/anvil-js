@@ -1,6 +1,6 @@
 {
   "name": "anvil-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Express for humans. Anvil for agents. Node backend framework with file-based routing, compile-time validation, and a native agentic layer (MCP, tools, tracing).",
   "type": "module",
   "license": "MIT",
@@ -122,9 +122,15 @@
     "openai": ">=4.0.0"
   },
   "peerDependenciesMeta": {
-    "@anthropic-ai/sdk": { "optional": true },
-    "@google/generative-ai": { "optional": true },
-    "openai": { "optional": true }
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
