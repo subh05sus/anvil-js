@@ -44,6 +44,14 @@
     "./tools": {
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js"
+    },
+    "./eval": {
+      "types": "./dist/eval/index.d.ts",
+      "import": "./dist/eval/index.js"
+    },
+    "./prompt": {
+      "types": "./dist/prompt/index.d.ts",
+      "import": "./dist/prompt/index.js"
     }
   },
   "files": [

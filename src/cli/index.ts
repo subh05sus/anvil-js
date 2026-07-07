@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { buildCommand } from './build.js';
 import { devCommand } from './dev.js';
+import { evalCommand } from './eval.js';
 import { lintCommand } from './lint.js';
 import { mcpCommand } from './mcp.js';
 import { startCommand } from './start.js';
@@ -65,10 +66,13 @@ program
     }),
   );
 
-for (const [name, milestone] of [
-  ['eval', 'M6 (agent evals harness)'],
-  ['replay', 'M6 (trace replay)'],
-] as const) {
+program
+  .command('eval')
+  .description('Run an eval suite (deterministic + LLM-judge assertions) against an agent')
+  .argument('<file>', 'suite file default-exporting defineEvalSuite(...)')
+  .action((file: string) => evalCommand({ file }));
+
+for (const [name, milestone] of [['replay', 'M6-B (trace replay)']] as const) {
   program
     .command(name)
     .description(`Planned — lands in ${milestone}`)

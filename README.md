@@ -50,6 +50,7 @@ export default async function handler(ctx: Context) {
 - `anvil start` — runs the production bundle
 - `anvil lint` — validates routes: `paramsSchema` keys match folder params, and any schema on an MCP-exposed route converts losslessly to JSON Schema (`--strict` fails on warnings too)
 - `anvil mcp` — serves `meta.mcp.expose` routes and `server/tools/` as an MCP server over Streamable HTTP (`--stdio` for local clients like Claude Desktop)
+- `anvil eval <file>` — runs an eval suite (deterministic assertions + LLM-as-judge) against an agent; exits non-zero on failure
 
 ## MCP: any route is also a tool
 

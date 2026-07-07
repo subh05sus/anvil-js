@@ -11,6 +11,8 @@ export default defineConfig({
     'trace/index': 'src/trace/index.ts',
     'store/index': 'src/store/index.ts',
     'tools/index': 'src/tools/index.ts',
+    'eval/index': 'src/eval/index.ts',
+    'prompt/index': 'src/prompt/index.ts',
   },
   format: ['esm'],
   target: 'node20',
