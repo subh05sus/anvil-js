@@ -56,7 +56,7 @@ export default defineAgent({
 });
 ```
 
-`toolPolicy` scopes what a tool can do without human sign-off (§6.14). `injectionGuard` is a **prompt-injection defense** (§6.21): once a tool result or retrieved document has entered the conversation, further tool calls are treated as potentially injection-driven and gated — `deny` returns an error result, `approve` routes through the same HITL suspend/resume machinery above. It polices *provenance*; `contentFilter`/`redactPII` police *content*.
+`toolPolicy` scopes what a tool can do without human sign-off. `injectionGuard` is a **prompt-injection defense**: once a tool result or retrieved document has entered the conversation, further tool calls are treated as potentially injection-driven and gated — `deny` returns an error result, `approve` routes through the same HITL suspend/resume machinery above. It polices *provenance*; `contentFilter`/`redactPII` police *content*.
 
 ## State store
 

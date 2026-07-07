@@ -18,7 +18,7 @@ export default function handler(ctx) {
 
 That one file is now `GET /users/:id`, an MCP tool (`anvil mcp`), and an A2A skill — the same handler, the same schema, checked at build time, no duplication.
 
-**Status: pre-alpha, all planned milestones shipped.** M0–M8 implemented and tested (204+ tests). M9 (this README, docs, examples) is in progress. See [PRD.md](./PRD.md) for the full design doc and milestone history.
+Core routing, MCP/A2A exposure, agent runtime, observability, durability, evals, memory/RAG, and background agents are all implemented and covered by 200+ tests.
 
 ---
 
@@ -125,8 +125,8 @@ Add durability, human approval, and policy with a few more options — see **[do
 
 ## Why not just Express + an MCP SDK + LangChain?
 
-Because then you're maintaining three schemas for one endpoint (REST validation, tool-calling schema, MCP tool definition), a hand-rolled trace format, your own crash-recovery for agent loops, and a bespoke approval flow for anything that touches money or PII. Anvil's bet: this is framework-layer work, done once, the way Next.js did routing once instead of every app reinventing it. See [PRD.md](./PRD.md) §12 for the fuller comparison.
+Because then you're maintaining three schemas for one endpoint (REST validation, tool-calling schema, MCP tool definition), a hand-rolled trace format, your own crash-recovery for agent loops, and a bespoke approval flow for anything that touches money or PII. Anvil's bet: this is framework-layer work, done once, the way Next.js did routing once instead of every app reinventing it.
 
-## Contributing / status
+## Roadmap
 
-This is a from-scratch reference implementation tracking the PRD milestone-by-milestone (17+ commits, M0 through M8). Everything above is implemented and tested — not a roadmap promise. Known gaps before a 1.0: deep ts-morph handler-body lint rules, true token-level streaming from the model drivers (currently chunked), a `sqlite-vec` ANN adapter, and a container-based sandbox adapter for untrusted code. The npm package name `anvil` is a placeholder — expect it to change before publish.
+A few areas are actively being hardened: deeper static-analysis lint rules for handler bodies, true token-level streaming from the model drivers (currently chunked), an ANN-backed vector store adapter for large corpora, and a container-based sandbox adapter for untrusted code execution.

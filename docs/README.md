@@ -10,4 +10,4 @@
 - [Memory & retrieval](./memory-rag.md)
 - [Protocol & background agents](./protocol-background.md)
 
-See the [root README](../README.md) for the pitch and quick start, and [PRD.md](../PRD.md) for the full design doc and milestone history.
+See the [root README](../README.md) for the pitch and quick start.

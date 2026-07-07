@@ -1,8 +1,8 @@
 # Anvil example: agent with human-in-the-loop
 
-Demonstrates PRD §6.7 (HITL) and §6.20 (durable checkpointing): a `refund` tool
-that must not fire without a human's approval, and survives a server restart
-while waiting.
+Demonstrates human-in-the-loop approval and durable checkpointing: a `refund`
+tool that must not fire without a human's approval, and survives a server
+restart while waiting.
 
 ## Run it
 

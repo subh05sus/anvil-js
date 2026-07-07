@@ -7,3 +7,6 @@ tests/.tmp-*
 *.log
 .env
 .env.*
+
+# Internal design doc — not for public repo
+PRD.md

@@ -12,7 +12,7 @@ const client = new LlmClient({
   defaultModel: 'claude-opus-4-8',
   fallback: ['gpt-4o'],   // tried on a transient failure of the primary
   maxRetries: 2,
-  onTrace: (event) => { /* every call — feeds the M4 tracing seam */ },
+  onTrace: (event) => { /* every call — feeds the tracing pipeline, see observability.md */ },
 });
 
 const result = await client.generate({ messages: [{ role: 'user', content: 'hi' }] });

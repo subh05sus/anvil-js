@@ -11,7 +11,7 @@ npm run mcp          # Streamable HTTP on :3100/mcp
 npm run mcp:stdio     # stdio, for Claude Desktop / local MCP clients
 ```
 
-From a fresh `npm install` to a working MCP server: under a minute (PRD §9 success metric).
+From a fresh `npm install` to a working MCP server: under a minute.
 
 ## What's exposed
 
