@@ -1,0 +1,13 @@
+{
+  "name": "example-basic-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "anvil dev",
+    "build": "anvil build",
+    "start": "anvil start"
+  },
+  "dependencies": {
+    "anvil": "file:../.."
+  }
+}
