@@ -6,6 +6,7 @@ import type { CostGovernor } from '../trace/governor.js';
 import type { TraceHandle, SpanHandle } from '../trace/tracer.js';
 import type { StateStore } from '../store/index.js';
 import { ApprovalRequiredError, Checkpointer, type AgentCheckpoint } from './durable.js';
+import { applyTextGuards, decideToolCall, type Guardrail } from './guardrails.js';
 
 /**
  * A tool the agent can call. `input` is validated with `zodSchema` (if given)
@@ -63,6 +64,8 @@ export interface RunAgentOptions {
   approvals?: Record<string, unknown>;
   /** Seed counters when resuming from a checkpoint. */
   resumeState?: { iterations: number; totalUsage: GenerateResult['usage']; totalCostUsd: number };
+  /** Policy layer (PRD §6.14, §6.21): filters output text and gates tool calls. */
+  guardrails?: Guardrail[];
 }
 
 export interface AgentRunResult {
@@ -90,6 +93,9 @@ interface ExecContext {
   signal?: AbortSignal;
   trace?: TraceHandle;
   agentSpanId?: string;
+  guardrails: Guardrail[];
+  /** Untrusted (tool/retrieved) content already in context — drives injection policy. */
+  tainted: boolean;
 }
 
 type ExecOutcome =
@@ -116,8 +122,18 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
   let iterations = opts.resumeState?.iterations ?? 0;
   let stoppedAtCap = false;
 
+  const guardrails = opts.guardrails ?? [];
   const agentSpan = opts.trace?.startSpan('agent', 'agent', { model: opts.model });
-  const ctx: ExecContext = { toolMap, approvals, signal: opts.signal, trace: opts.trace, agentSpanId: agentSpan?.id };
+  // Tainted once any tool result is already in the conversation (resume-safe).
+  const ctx: ExecContext = {
+    toolMap,
+    approvals,
+    signal: opts.signal,
+    trace: opts.trace,
+    agentSpanId: agentSpan?.id,
+    guardrails,
+    tainted: hasToolResults(messages),
+  };
 
   const saveCheckpoint = async (status: AgentCheckpoint['status'], extra: Partial<AgentCheckpoint> = {}) => {
     await checkpointer?.save({ status, messages, iterations, totalUsage: total, totalCostUsd, ...extra });
@@ -133,6 +149,7 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
         return yield* suspend(outcome);
       }
       messages.push({ role: 'user', content: outcome.resultBlocks });
+      ctx.tainted = true; // tool output is untrusted from here on
       await saveCheckpoint('running');
     }
 
@@ -171,24 +188,26 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
       opts.governor?.record(result.usage, result.costUsd);
       opts.trace?.addUsage(result.usage, result.costUsd);
 
-      if (result.text) yield { type: 'text', text: result.text };
+      const text = guardrails.length ? applyTextGuards(result.text, 'output', guardrails) : result.text;
+      if (text) yield { type: 'text', text };
 
       const calls = result.toolCalls ?? [];
       if (calls.length === 0) {
-        finalText = result.text;
+        finalText = text;
         agentSpan?.end('ok', { iterations });
         await saveCheckpoint('done', { finalText });
         yield { type: 'final', text: finalText, usage: total, costUsd: totalCostUsd, iterations };
         return done();
       }
 
-      messages.push({ role: 'assistant', content: assistantBlocks(result.text, calls) });
+      messages.push({ role: 'assistant', content: assistantBlocks(text, calls) });
 
       const outcome = yield* executeCalls(calls, ctx);
       if (outcome.kind === 'suspended') {
         return yield* suspend(outcome);
       }
       messages.push({ role: 'user', content: outcome.resultBlocks });
+      ctx.tainted = true;
       await saveCheckpoint('running');
     }
 
@@ -266,7 +285,7 @@ async function* executeCalls(calls: ToolCall[], ctx: ExecContext): AsyncGenerato
     yield { type: 'tool_call', id: call.id, name: call.name, input: call.input };
     const span: SpanHandle | undefined = ctx.trace?.startSpan(`tool:${call.name}`, 'tool', { name: call.name, input: call.input }, ctx.agentSpanId);
 
-    // Fenced/approved: result was supplied (resume) — do not re-execute.
+    // Fenced/approved: result was supplied (resume) — do not re-execute or re-gate.
     if (Object.prototype.hasOwnProperty.call(ctx.approvals, call.id)) {
       const output = ctx.approvals[call.id];
       span?.end('ok', { output, fenced: true });
@@ -274,6 +293,23 @@ async function* executeCalls(calls: ToolCall[], ctx: ExecContext): AsyncGenerato
       resultBlocks.push(toResultBlock(call.id, output, false));
       completed[call.id] = output;
       continue;
+    }
+
+    // Policy gate (PRD §6.14, §6.21): deny → error result; approve → suspend for HITL.
+    if (ctx.guardrails.length > 0) {
+      const decision = decideToolCall({ name: call.name, input: call.input, tainted: ctx.tainted }, ctx.guardrails);
+      if (decision.action === 'deny') {
+        const output = `Tool blocked by guardrail: ${decision.reason ?? 'denied'}`;
+        span?.end('error', { output, blocked: true });
+        yield { type: 'tool_result', id: call.id, name: call.name, output, isError: true };
+        resultBlocks.push(toResultBlock(call.id, output, true));
+        completed[call.id] = output;
+        continue;
+      }
+      if (decision.action === 'approve') {
+        span?.end('ok', { suspended: true });
+        return { kind: 'suspended', callId: call.id, payload: { guardrail: decision.reason, name: call.name, input: call.input }, completed };
+      }
     }
 
     try {
@@ -324,6 +360,11 @@ async function runTool(
 
 function toResultBlock(callId: string, output: unknown, isError: boolean): ContentBlock {
   return { type: 'tool_result', toolUseId: callId, content: typeof output === 'string' ? output : JSON.stringify(output), isError };
+}
+
+/** Whether any tool_result block appears in the conversation (→ tainted context). */
+function hasToolResults(messages: ModelMessage[]): boolean {
+  return messages.some((m) => typeof m.content !== 'string' && m.content.some((b) => b.type === 'tool_result'));
 }
 
 /** Tool calls in the trailing assistant turn that have no answering tool_result yet. */

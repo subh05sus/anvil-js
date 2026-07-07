@@ -7,6 +7,7 @@ import { CostGovernor, type BudgetConfig } from '../trace/governor.js';
 import type { Tracer, TraceHandle } from '../trace/tracer.js';
 import { toDataStreamResponse } from './datastream.js';
 import { streamAgent, type AgentEvent, type AgentTool } from './runtime.js';
+import type { Guardrail } from './guardrails.js';
 
 const LLM_STATE_KEY = 'llm';
 
@@ -36,6 +37,8 @@ export interface DefineAgentConfig {
   traceName?: string | ((ctx: Context) => string);
   /** Per-request budget cap (PRD §6.15). */
   budget?: BudgetConfig;
+  /** Policy layer: output filtering + tool-call gating (PRD §6.14, §6.21). */
+  guardrails?: Guardrail[];
   /** Extract the conversation from the request. Default: `body.messages` (AI SDK chat shape). */
   getMessages?: (ctx: Context) => ModelMessage[] | Promise<ModelMessage[]>;
 }
@@ -70,6 +73,7 @@ export function defineAgent(config: DefineAgentConfig): Handler {
       signal: ctx.req.signal,
       trace,
       governor,
+      guardrails: config.guardrails,
     });
 
     const stream = trace ? closeTraceAfter(events, trace, ctx.req.signal) : events;
