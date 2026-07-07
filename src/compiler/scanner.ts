@@ -11,6 +11,9 @@ const METHOD_FILES: Record<string, HttpMethod> = {
   delete: 'DELETE',
   head: 'HEAD',
   options: 'OPTIONS',
+  // agent.ts is an agent route (PRD §6.2) — served over POST. It conflicts with
+  // a sibling post.ts (both would claim POST), which the validator reports.
+  agent: 'POST',
 };
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.mts', '.js', '.mjs']);

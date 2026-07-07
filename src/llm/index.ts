@@ -12,6 +12,9 @@ export { RetryableModelError } from './types.js';
 export type {
   ModelDriver,
   ModelMessage,
+  ContentBlock,
+  ToolSpec,
+  ToolCall,
   Role,
   GenerateRequest,
   GenerateResult,

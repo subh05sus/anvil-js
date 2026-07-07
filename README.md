@@ -4,7 +4,7 @@
 
 Anvil is a Node.js backend framework for AI & GenAI developers: Express-level flexibility, Next.js-style file-based routing, compile-time route/schema validation, and a native agentic layer — MCP exposure, tool registry, agent orchestration, tracing — built into the framework core.
 
-**Status: pre-alpha.** M0 (routing), M1 (compile-time validation), M2 (MCP auto-exposure + tool registry), and M3-A (provider-agnostic model client) are implemented. See [PRD.md](./PRD.md) for the full roadmap.
+**Status: pre-alpha.** M0 (routing), M1 (compile-time validation), M2 (MCP auto-exposure + tool registry), and M3 (model client + agent routes) are implemented. See [PRD.md](./PRD.md) for the full roadmap.
 
 ## Quick start
 
@@ -67,6 +67,37 @@ anvil mcp --stdio         # for Claude Desktop et al.
 ```
 
 Standalone tools live in `server/tools/*.ts` (a `default` function + `inputSchema`) and are served from the same command.
+
+## Agent routes
+
+An `agent.ts` file is an agent route — served over POST, streaming the Vercel AI SDK data stream protocol (so `useChat` works against it directly):
+
+```ts
+import { defineAgent } from 'anvil/agent';
+import { LlmClient, AnthropicDriver } from 'anvil/llm';
+import { z } from 'zod';
+
+const client = new LlmClient({
+  drivers: [new AnthropicDriver({ apiKey: process.env.ANTHROPIC_API_KEY })],
+  defaultModel: 'claude-opus-4-8',
+  fallback: ['gpt-4o'], // requires an OpenAIDriver too
+});
+
+export default defineAgent({
+  client,
+  system: 'You are a helpful assistant.',
+  tools: [
+    {
+      name: 'get_weather',
+      description: 'Get weather for a city',
+      zodSchema: z.object({ city: z.string() }),
+      execute: ({ city }) => fetchWeather(city),
+    },
+  ],
+});
+```
+
+The runtime runs the model↔tool loop (with an iteration cap), validates each tool's input against its Zod schema, tracks token usage and cost, and aborts the whole run — model call and tool execution — when the client disconnects.
 
 ## Roadmap (from PRD)
 

@@ -2,9 +2,30 @@ import type { JsonSchema } from '../compiler/json-schema.js';
 
 export type Role = 'system' | 'user' | 'assistant';
 
+/** Structured message content — enables the tool-calling loop (assistant tool_use, user tool_result). */
+export type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: unknown }
+  | { type: 'tool_result'; toolUseId: string; content: string; isError?: boolean };
+
 export interface ModelMessage {
   role: Role;
-  content: string;
+  /** Plain text, or structured blocks for tool calls/results. */
+  content: string | ContentBlock[];
+}
+
+/** A tool advertised to the model. `inputSchema` is JSON Schema (from the M1 converter). */
+export interface ToolSpec {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+}
+
+/** A tool invocation the model requested. */
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: unknown;
 }
 
 export interface ResponseFormat {
@@ -26,6 +47,8 @@ export interface GenerateRequest {
   signal?: AbortSignal;
   /** Ask the provider to emit JSON matching this schema (structured output). */
   responseFormat?: ResponseFormat;
+  /** Tools the model may call. Presence enables tool-calling responses. */
+  tools?: ToolSpec[];
 }
 
 export interface Usage {
@@ -42,7 +65,10 @@ export interface GenerateResult {
   usage: Usage;
   /** USD cost from the pricing table; undefined if the model's price is unknown. */
   costUsd?: number;
+  /** e.g. 'end_turn', 'tool_use', 'max_tokens'. */
   stopReason?: string;
+  /** Tool calls the model requested this turn (when stopReason is 'tool_use'). */
+  toolCalls?: ToolCall[];
   /** Provider-native response, for escape hatches. */
   raw?: unknown;
 }

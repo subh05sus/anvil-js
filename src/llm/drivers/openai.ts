@@ -4,7 +4,9 @@ import {
   type GenerateRequest,
   type GenerateResult,
   type ModelDriver,
+  type ModelMessage,
   type StreamEvent,
+  type ToolCall,
   type Usage,
 } from '../types.js';
 
@@ -18,7 +20,13 @@ export interface OpenAILike {
 }
 
 interface OpenAICompletion {
-  choices: Array<{ message?: { content?: string | null }; finish_reason?: string }>;
+  choices: Array<{
+    message?: {
+      content?: string | null;
+      tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>;
+    };
+    finish_reason?: string;
+  }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
@@ -81,9 +89,9 @@ export class OpenAIDriver implements ModelDriver {
 }
 
 function buildParams(req: GenerateRequest, model: string): Record<string, unknown> {
-  const messages: Array<{ role: string; content: string }> = [];
+  const messages: Array<Record<string, unknown>> = [];
   if (req.system) messages.push({ role: 'system', content: req.system });
-  for (const m of req.messages) messages.push({ role: m.role, content: m.content });
+  for (const m of req.messages) messages.push(...toOpenAIMessages(m));
 
   const params: Record<string, unknown> = { model, messages };
   if (req.maxTokens) params.max_tokens = req.maxTokens;
@@ -93,7 +101,41 @@ function buildParams(req: GenerateRequest, model: string): Record<string, unknow
       json_schema: { name: req.responseFormat.name ?? 'output', schema: req.responseFormat.schema, strict: true },
     };
   }
+  if (req.tools?.length) {
+    params.tools = req.tools.map((t) => ({
+      type: 'function',
+      function: { name: t.name, description: t.description, parameters: t.inputSchema },
+    }));
+  }
   return params;
+}
+
+/** Expand one normalized message into the OpenAI message(s) it maps to (tool_results become separate `tool` messages). */
+function toOpenAIMessages(m: ModelMessage): Array<Record<string, unknown>> {
+  if (typeof m.content === 'string') return [{ role: m.role, content: m.content }];
+
+  const text = m.content.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.text : '')).join('');
+  const toolUses = m.content.filter((b) => b.type === 'tool_use');
+  const toolResults = m.content.filter((b) => b.type === 'tool_result');
+  const out: Array<Record<string, unknown>> = [];
+
+  if (m.role === 'assistant' && toolUses.length > 0) {
+    out.push({
+      role: 'assistant',
+      content: text || null,
+      tool_calls: toolUses.map((b) =>
+        b.type === 'tool_use'
+          ? { id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input) } }
+          : {},
+      ),
+    });
+  } else if (text || toolResults.length === 0) {
+    out.push({ role: m.role, content: text });
+  }
+  for (const b of toolResults) {
+    if (b.type === 'tool_result') out.push({ role: 'tool', tool_call_id: b.toolUseId, content: b.content });
+  }
+  return out;
 }
 
 function toResult(res: OpenAICompletion, model: string, provider: string): GenerateResult {
@@ -102,6 +144,11 @@ function toResult(res: OpenAICompletion, model: string, provider: string): Gener
     inputTokens: res.usage?.prompt_tokens ?? 0,
     outputTokens: res.usage?.completion_tokens ?? 0,
   };
+  const toolCalls: ToolCall[] = (choice?.message?.tool_calls ?? []).map((c) => ({
+    id: c.id,
+    name: c.function.name,
+    input: safeParse(c.function.arguments),
+  }));
   return {
     text: choice?.message?.content ?? '',
     model,
@@ -109,8 +156,17 @@ function toResult(res: OpenAICompletion, model: string, provider: string): Gener
     usage,
     costUsd: computeCost(model, usage),
     stopReason: choice?.finish_reason,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     raw: res,
   };
+}
+
+function safeParse(json: string): unknown {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return json;
+  }
 }
 
 function classify(err: unknown): Error {

@@ -1,10 +1,13 @@
 import { computeCost } from '../cost.js';
 import {
   RetryableModelError,
+  type ContentBlock,
   type GenerateRequest,
   type GenerateResult,
   type ModelDriver,
+  type ModelMessage,
   type StreamEvent,
+  type ToolCall,
   type Usage,
 } from '../types.js';
 
@@ -16,7 +19,7 @@ export interface AnthropicLike {
 }
 
 interface AnthropicMessage {
-  content: Array<{ type: string; text?: string }>;
+  content: Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
   stop_reason?: string;
   usage?: {
     input_tokens?: number;
@@ -93,11 +96,11 @@ export class AnthropicDriver implements ModelDriver {
 
 function buildParams(req: GenerateRequest, model: string): Record<string, unknown> {
   // Any 'system' messages are lifted into the top-level system field.
-  const systemParts = req.messages.filter((m) => m.role === 'system').map((m) => m.content);
+  const systemParts = req.messages
+    .filter((m) => m.role === 'system')
+    .map((m) => (typeof m.content === 'string' ? m.content : ''));
   const system = [req.system, ...systemParts].filter(Boolean).join('\n\n') || undefined;
-  const messages = req.messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role, content: m.content }));
+  const messages = req.messages.filter((m) => m.role !== 'system').map(toAnthropicMessage);
 
   const params: Record<string, unknown> = {
     model,
@@ -113,7 +116,25 @@ function buildParams(req: GenerateRequest, model: string): Record<string, unknow
       format: { type: 'json_schema', schema: req.responseFormat.schema },
     };
   }
+  if (req.tools?.length) {
+    params.tools = req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema }));
+  }
   return params;
+}
+
+function toAnthropicMessage(m: ModelMessage): { role: string; content: unknown } {
+  if (typeof m.content === 'string') return { role: m.role, content: m.content };
+  const blocks = m.content.map((b: ContentBlock) => {
+    switch (b.type) {
+      case 'text':
+        return { type: 'text', text: b.text };
+      case 'tool_use':
+        return { type: 'tool_use', id: b.id, name: b.name, input: b.input };
+      case 'tool_result':
+        return { type: 'tool_result', tool_use_id: b.toolUseId, content: b.content, is_error: b.isError };
+    }
+  });
+  return { role: m.role, content: blocks };
 }
 
 function toResult(res: AnthropicMessage, model: string, provider: string): GenerateResult {
@@ -121,13 +142,25 @@ function toResult(res: AnthropicMessage, model: string, provider: string): Gener
     .filter((b) => b.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text)
     .join('');
+  const toolCalls: ToolCall[] = res.content
+    .filter((b) => b.type === 'tool_use')
+    .map((b) => ({ id: b.id ?? '', name: b.name ?? '', input: b.input }));
   const usage: Usage = {
     inputTokens: res.usage?.input_tokens ?? 0,
     outputTokens: res.usage?.output_tokens ?? 0,
     cacheReadTokens: res.usage?.cache_read_input_tokens,
     cacheWriteTokens: res.usage?.cache_creation_input_tokens,
   };
-  return { text, model, provider, usage, costUsd: computeCost(model, usage), stopReason: res.stop_reason, raw: res };
+  return {
+    text,
+    model,
+    provider,
+    usage,
+    costUsd: computeCost(model, usage),
+    stopReason: res.stop_reason,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    raw: res,
+  };
 }
 
 function classify(err: unknown): Error {

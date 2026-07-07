@@ -26,8 +26,14 @@ export function serve(app: Fetchable | (() => Fetchable), options: ServeOptions 
   const getApp = typeof app === 'function' ? app : () => app;
 
   const server = http.createServer(async (req, res) => {
+    // Client disconnect → abort the request signal, which agent routes thread
+    // into model and tool calls so an abandoned run stops (PRD §11 edge #3).
+    const controller = new AbortController();
+    res.on('close', () => {
+      if (!res.writableFinished) controller.abort();
+    });
     try {
-      const request = toWebRequest(req);
+      const request = toWebRequest(req, controller.signal);
       const response = await getApp().fetch(request);
       await writeResponse(res, response, req.method === 'HEAD');
     } catch (err) {
@@ -58,7 +64,7 @@ export function serve(app: Fetchable | (() => Fetchable), options: ServeOptions 
   });
 }
 
-export function toWebRequest(req: http.IncomingMessage): Request {
+export function toWebRequest(req: http.IncomingMessage, signal?: AbortSignal): Request {
   const host = req.headers.host ?? 'localhost';
   const url = `http://${host}${req.url ?? '/'}`;
 
@@ -77,6 +83,7 @@ export function toWebRequest(req: http.IncomingMessage): Request {
     method,
     headers,
     body: hasBody ? (Readable.toWeb(req) as unknown as ReadableStream) : undefined,
+    signal,
     // Required by undici when passing a stream body.
     duplex: 'half',
   } as RequestInit);

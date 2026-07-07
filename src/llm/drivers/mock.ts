@@ -1,10 +1,19 @@
 import { computeCost } from '../cost.js';
-import { RetryableModelError, type GenerateRequest, type GenerateResult, type ModelDriver, type StreamEvent } from '../types.js';
+import {
+  RetryableModelError,
+  type GenerateRequest,
+  type GenerateResult,
+  type ModelDriver,
+  type StreamEvent,
+  type ToolCall,
+} from '../types.js';
 
 export interface MockResponse {
   /** Text to return. If a function, computed from the request. */
   text: string | ((req: GenerateRequest) => string);
   usage?: { inputTokens: number; outputTokens: number };
+  /** Tool calls to request this turn (drives the agent loop in tests). */
+  toolCalls?: ToolCall[];
   /** Throw this instead of responding (to exercise retry/fallback). */
   error?: Error;
 }
@@ -51,13 +60,15 @@ export class MockDriver implements ModelDriver {
     const text = next ? resolve(next.text, req) : this.#defaultText;
     const usage = next?.usage ?? { inputTokens: estimate(req), outputTokens: Math.ceil(text.length / 4) };
     const model = req.model ?? `${this.#prefix}-model`;
+    const toolCalls = next?.toolCalls;
     return {
       text,
       model,
       provider: this.provider,
       usage,
       costUsd: computeCost(model, usage),
-      stopReason: 'end_turn',
+      stopReason: toolCalls?.length ? 'tool_use' : 'end_turn',
+      toolCalls: toolCalls?.length ? toolCalls : undefined,
     };
   }
 

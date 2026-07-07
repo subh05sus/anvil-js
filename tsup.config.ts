@@ -7,6 +7,7 @@ export default defineConfig({
     'cli/index': 'src/cli/index.ts',
     'mcp/index': 'src/mcp/index.ts',
     'llm/index': 'src/llm/index.ts',
+    'agent/index': 'src/agent/index.ts',
     'trace/index': 'src/trace/index.ts',
     'store/index': 'src/store/index.ts',
     'tools/index': 'src/tools/index.ts',
