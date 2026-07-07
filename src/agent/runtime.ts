@@ -123,7 +123,9 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
   let stoppedAtCap = false;
 
   const guardrails = opts.guardrails ?? [];
-  const agentSpan = opts.trace?.startSpan('agent', 'agent', { model: opts.model });
+  // Record the input on the agent span so `replayAgent` can reconstruct the run.
+  // Snapshot (slice) — `messages` is mutated by the loop as turns are appended.
+  const agentSpan = opts.trace?.startSpan('agent', 'agent', { model: opts.model, system: opts.system, input: messages.slice() });
   // Tainted once any tool result is already in the conversation (resume-safe).
   const ctx: ExecContext = {
     toolMap,
@@ -180,6 +182,8 @@ export async function* streamAgent(opts: RunAgentOptions): AsyncGenerator<AgentE
         usage: result.usage,
         costUsd: result.costUsd,
         stopReason: result.stopReason,
+        // Recorded so a trace can be replayed with mocked model responses (PRD §6.19).
+        response: { text: result.text, toolCalls: result.toolCalls ?? [] },
       });
 
       total.inputTokens += result.usage.inputTokens;

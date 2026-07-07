@@ -4,7 +4,7 @@
 
 Anvil is a Node.js backend framework for AI & GenAI developers: Express-level flexibility, Next.js-style file-based routing, compile-time route/schema validation, and a native agentic layer — MCP exposure, tool registry, agent orchestration, tracing — built into the framework core.
 
-**Status: pre-alpha.** M0–M5 implemented: routing, compile-time validation, MCP auto-exposure + tool registry, model client + agent routes, observability (tracing, `/_anvil` dashboard, cost governor, OTel export), and durability + safety (durable checkpointing, human-in-the-loop, guardrails + prompt-injection taint layer). See [PRD.md](./PRD.md) for the full roadmap.
+**Status: pre-alpha.** M0–M6 implemented: routing, compile-time validation, MCP auto-exposure + tool registry, model client + agent routes, observability (tracing, `/_anvil` dashboard, cost governor, OTel export), durability + safety (durable checkpointing, human-in-the-loop, guardrails + prompt-injection taint layer), and evals + prompt registry + trace replay. See [PRD.md](./PRD.md) for the full roadmap.
 
 ## Quick start
 
@@ -51,6 +51,7 @@ export default async function handler(ctx: Context) {
 - `anvil lint` — validates routes: `paramsSchema` keys match folder params, and any schema on an MCP-exposed route converts losslessly to JSON Schema (`--strict` fails on warnings too)
 - `anvil mcp` — serves `meta.mcp.expose` routes and `server/tools/` as an MCP server over Streamable HTTP (`--stdio` for local clients like Claude Desktop)
 - `anvil eval <file>` — runs an eval suite (deterministic assertions + LLM-as-judge) against an agent; exits non-zero on failure
+- `anvil replay <traceId>` — re-runs a captured agent trace with mocked model responses (no live calls, no re-fired side effects)
 
 ## MCP: any route is also a tool
 

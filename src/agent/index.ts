@@ -4,6 +4,8 @@ export { Checkpointer, ApprovalRequiredError, listRuns } from './durable.js';
 export type { AgentCheckpoint, CheckpointStatus } from './durable.js';
 export { contentFilter, redactPII, toolPolicy, injectionGuard, GuardrailError, applyTextGuards, decideToolCall } from './guardrails.js';
 export type { Guardrail, ToolDecision, ToolCallContext, TextContext, ContentFilterOptions, ToolPolicyOptions, InjectionGuardOptions } from './guardrails.js';
+export { ReplayDriver, buildReplayFromTrace, replayAgent, replayToResult } from './replay.js';
+export type { Replayable } from './replay.js';
 export { defineAgent, withLlm, getLlm } from './define.js';
 export type { DefineAgentConfig } from './define.js';
 export { toDataStreamResponse, encodeDataStreamPart } from './datastream.js';

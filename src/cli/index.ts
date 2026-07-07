@@ -5,6 +5,7 @@ import { devCommand } from './dev.js';
 import { evalCommand } from './eval.js';
 import { lintCommand } from './lint.js';
 import { mcpCommand } from './mcp.js';
+import { replayCommand } from './replay.js';
 import { startCommand } from './start.js';
 
 const program = new Command();
@@ -72,15 +73,12 @@ program
   .argument('<file>', 'suite file default-exporting defineEvalSuite(...)')
   .action((file: string) => evalCommand({ file }));
 
-for (const [name, milestone] of [['replay', 'M6-B (trace replay)']] as const) {
-  program
-    .command(name)
-    .description(`Planned — lands in ${milestone}`)
-    .action(() => {
-      console.error(`[anvil] \`anvil ${name}\` lands in ${milestone}. See PRD.md §10.`);
-      process.exitCode = 1;
-    });
-}
+program
+  .command('replay')
+  .description('Re-run a captured agent trace with mocked model responses (no live calls)')
+  .argument('<traceId>', 'trace id to replay')
+  .option('-s, --store <file>', 'SQLite trace DB file', '.anvil/traces.db')
+  .action((traceId: string, opts: { store: string }) => replayCommand({ traceId, store: opts.store }));
 
 program.parseAsync().catch((err) => {
   console.error('[anvil]', err instanceof Error ? err.message : err);
