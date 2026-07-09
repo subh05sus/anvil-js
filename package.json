@@ -106,6 +106,7 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bench": "vitest bench",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -133,8 +134,11 @@
     }
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^20.14.0",
     "eslint": "^9.9.0",
+    "express": "^5.2.1",
+    "find-my-way": "^9.6.0",
     "tsup": "^8.2.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.0.0",

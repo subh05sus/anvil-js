@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Anvil basic-api playground</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  h1 { margin-bottom: 0; }
+  p.sub { color: #888; margin-top: 0.25rem; }
+  section { border: 1px solid #8883; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.25rem 0; }
+  h2 { margin-top: 0; font-size: 1.05rem; }
+  button { cursor: pointer; padding: 0.4rem 0.9rem; border-radius: 6px; border: 1px solid #8886; background: #6663; }
+  input, textarea { font: inherit; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #8886; }
+  pre { background: #8881; padding: 0.6rem 0.8rem; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  a.pill { font-size: 0.85rem; text-decoration: none; border: 1px solid #8886; border-radius: 999px; padding: 0.1rem 0.7rem; }
+</style>
+</head>
+<body>
+<h1>Anvil basic-api playground</h1>
+<p class="sub">A hand-written page hitting this example's live routes with <code>fetch</code> — no build step, served straight out of <code>public/</code>.</p>
+<p class="row">
+  <a class="pill" href="/_anvil">Trace dashboard →</a>
+  <a class="pill" href="/hello.txt">Static file →</a>
+  <a class="pill" href="/">Root JSON →</a>
+</p>
+
+<section>
+  <h2>GET /users</h2>
+  <div class="row"><button id="listUsers">Fetch</button></div>
+  <pre id="usersOut">—</pre>
+</section>
+
+<section>
+  <h2>GET /users/:id</h2>
+  <div class="row">
+    <input id="userId" value="1" size="6" />
+    <button id="getUser">Fetch</button>
+  </div>
+  <pre id="userOut">—</pre>
+</section>
+
+<section>
+  <h2>POST /users</h2>
+  <div class="row">
+    <input id="newName" placeholder="name" value="Ada Lovelace" />
+    <button id="createUser">Create</button>
+  </div>
+  <pre id="createOut">—</pre>
+</section>
+
+<section>
+  <h2>POST /chat (streaming agent route)</h2>
+  <div class="row">
+    <input id="chatMsg" placeholder="ask something…" value="find user 1" style="flex:1" />
+    <button id="sendChat">Send</button>
+  </div>
+  <pre id="chatOut">—</pre>
+</section>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  async function showJson(url, opts, outEl) {
+    outEl.textContent = 'loading…';
+    try {
+      const res = await fetch(url, opts);
+      const body = await res.json();
+      outEl.textContent = `${res.status} ${res.statusText}\n` + JSON.stringify(body, null, 2);
+    } catch (err) {
+      outEl.textContent = 'Error: ' + err;
+    }
+  }
+
+  $('listUsers').onclick = () => showJson('/users', {}, $('usersOut'));
+
+  $('getUser').onclick = () =>
+    showJson(`/users/${encodeURIComponent($('userId').value)}`, {}, $('userOut'));
+
+  $('createUser').onclick = () =>
+    showJson(
+      '/users',
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('newName').value }) },
+      $('createOut'),
+    );
+
+  // Minimal client-side parser for the Vercel AI SDK data-stream protocol
+  // (prefix-coded lines: `0:"text"`, `9:{tool_call}`, `a:{tool_result}`, `d:{...}`).
+  // A real app would use the `ai` package's `useChat`; this stays dependency-free.
+  $('sendChat').onclick = async () => {
+    const out = $('chatOut');
+    out.textContent = '';
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: $('chatMsg').value }] }),
+    });
+    if (!res.body) { out.textContent = 'No stream body in response.'; return; }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line) continue;
+        const sep = line.indexOf(':');
+        const code = line.slice(0, sep);
+        const payload = line.slice(sep + 1);
+        try {
+          const data = JSON.parse(payload);
+          if (code === '0') out.textContent += data;
+          else if (code === '9') out.textContent += `\n[tool_call ${data.toolName}(${JSON.stringify(data.args)})]\n`;
+          else if (code === 'a') out.textContent += `[tool_result ${JSON.stringify(data.result)}]\n`;
+        } catch {
+          // ignore malformed/partial line
+        }
+      }
+    }
+  };
+</script>
+</body>
+</html>
