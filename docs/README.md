@@ -2,6 +2,7 @@
 
 - [Getting started](./getting-started.md)
 - [Routing](./routing.md)
+- [Auth & security](./security.md)
 - [MCP & tools](./mcp.md)
 - [Agents](./agents.md)
 - [Observability](./observability.md)

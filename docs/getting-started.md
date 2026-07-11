@@ -80,8 +80,10 @@ export default defineAgent({ client, system: 'You are a helpful assistant.' });
 ## Where next
 
 - [Routing](./routing.md) — file conventions, middleware, static files
+- [Auth & security](./security.md) — authentication, sessions, rate limiting, body limits
 - [MCP & tools](./mcp.md) — exposing routes and standalone tools
 - [Agents](./agents.md) — tool calling, streaming, context assembly
 - [Observability](./observability.md) — tracing, the dashboard, cost caps
 - [Durability & safety](./durability-safety.md) — checkpointing, HITL, guardrails
+- [Protocol & background agents](./protocol-background.md) — A2A, `anvil serve`, scheduled/triggered agents
 - Examples: [`examples/basic-api`](../examples/basic-api), [`examples/mcp-server`](../examples/mcp-server), [`examples/agent-hitl`](../examples/agent-hitl)

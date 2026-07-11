@@ -48,8 +48,9 @@ cd examples/basic-api && npm install && npx anvil dev
 | Layer | What you get |
 |---|---|
 | **Routing** | File-based routes (`[id]`, `[...catchall]`, `(groups)`, scoped `_middleware.ts`), Express-parity static files/CORS, radix-tree matching |
+| **Auth & security** | `authenticate`/`bearer`/`apiKey`, cookie sessions with fixation defense, `rateLimit` (fixed-window/token-bucket), `bodyLimit`, un-spoofable client IP |
 | **Compile-time validation** | `anvil lint` — params match schemas, MCP-exposed schemas serialize losslessly, structural route conflicts fail the build (not the request) |
-| **MCP & A2A** | `anvil mcp` (Streamable HTTP + stdio), `anvil/a2a` — one route/tool definition, three protocols |
+| **MCP & A2A** | `anvil mcp` (Streamable HTTP + stdio, stateful sessions + resources/prompts), `anvil/a2a` (streaming, cancel) — one route/tool definition, three protocols |
 | **Agents** | `defineAgent`, tool-calling loop with iteration caps, Vercel AI SDK streaming, abort-on-disconnect |
 | **Model client** | `LlmClient` over Anthropic / OpenAI / Gemini (lazy, optional peer deps), fallback chains, retries, cost tracking, structured output |
 | **Observability** | Trace tree per run, bundled `/_anvil` dashboard, cost governor, OpenTelemetry GenAI export |
@@ -59,7 +60,7 @@ cd examples/basic-api && npm install && npx anvil dev
 | **Background & multi-agent** | Scheduled (cron) and event-triggered agents, `AgentRegistry`/`callAgent` delegation |
 | **Sandbox** | `worker_threads` + `vm`-isolated code execution for agent-written code (documented threat model) |
 
-Full docs: **[docs/](./docs/README.md)**. Working examples: **[basic-api](./examples/basic-api)** · **[mcp-server](./examples/mcp-server)** · **[agent-hitl](./examples/agent-hitl)**.
+Full docs: **[docs/](./docs/README.md)**. Working examples: **[basic-api](./examples/basic-api)** · **[mcp-server](./examples/mcp-server)** · **[agent-hitl](./examples/agent-hitl)**. Benchmarks: `npm run bench` (see [`bench/`](./bench)).
 
 ## File-based routing
 
@@ -99,7 +100,8 @@ export default async function handler(ctx: Context) {
 | `anvil build` | Static route manifest + production bundle |
 | `anvil start` | Runs the production bundle |
 | `anvil lint` | Params/schema validation; MCP-schema serializability (`--strict` fails on warnings too) |
-| `anvil mcp [--stdio]` | Serves exposed routes + `server/tools/` as an MCP server |
+| `anvil mcp [--stdio] [--stateful]` | Serves exposed routes + `server/tools/` as an MCP server |
+| `anvil serve` | Runs scheduled/triggered background agents + an authenticated trigger webhook |
 | `anvil eval <file>` | Runs an eval suite against an agent; non-zero exit on failure |
 | `anvil replay <traceId>` | Re-runs a captured trace with mocked model responses |
 

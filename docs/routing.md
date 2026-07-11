@@ -42,6 +42,8 @@ const auth: Middleware = async (ctx, next) => {
 export default auth;
 ```
 
+Anvil ships built-in `authenticate`, `session`, `rateLimit`, and `bodyLimit` middleware — see [auth & security](./security.md).
+
 A **root** `_middleware.ts` also runs for unmatched paths — this is where static file serving and dashboards mount:
 
 ```ts
