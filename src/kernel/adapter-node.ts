@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { Readable } from 'node:stream';
+import { REMOTE_ADDR_HEADER } from './net.js';
 
 export interface ServeOptions {
   port?: number;
@@ -75,6 +76,12 @@ export function toWebRequest(req: http.IncomingMessage, signal?: AbortSignal): R
     if (name.toLowerCase() === 'transfer-encoding') continue;
     headers.append(name, req.rawHeaders[i + 1]!);
   }
+
+  // Thread the real client IP as a trusted header. Drop any client-forged copy
+  // first, then set it from the socket, so `getClientIp` can't be spoofed.
+  headers.delete(REMOTE_ADDR_HEADER);
+  const remoteAddr = req.socket?.remoteAddress;
+  if (remoteAddr) headers.set(REMOTE_ADDR_HEADER, remoteAddr);
 
   const method = req.method ?? 'GET';
   const hasBody = method !== 'GET' && method !== 'HEAD';

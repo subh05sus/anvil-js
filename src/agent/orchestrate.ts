@@ -1,7 +1,7 @@
 import type { Context } from '../kernel/context.js';
 import type { ModelMessage } from '../llm/types.js';
 import type { Middleware } from '../kernel/types.js';
-import { runAgent, type AgentRunResult, type AgentTool, type RunAgentOptions } from './runtime.js';
+import { runAgent, streamAgent, type AgentEvent, type AgentRunResult, type AgentTool, type RunAgentOptions } from './runtime.js';
 
 export type AgentConfig = Omit<RunAgentOptions, 'messages'>;
 
@@ -28,10 +28,29 @@ export class AgentRegistry {
 
   /** Invoke a registered agent with a message or full conversation. */
   async call(name: string, input: string | ModelMessage[], overrides: Partial<AgentConfig> = {}): Promise<AgentRunResult> {
-    const config = this.#agents.get(name);
-    if (!config) throw new Error(`No agent registered: "${name}". Registered: ${this.names().join(', ') || 'none'}`);
+    const config = this.#config(name);
     const messages: ModelMessage[] = typeof input === 'string' ? [{ role: 'user', content: input }] : input;
     return runAgent({ ...config, ...overrides, messages });
+  }
+
+  /**
+   * Stream a registered agent's run as `AgentEvent`s (for A2A `message/stream`,
+   * SSE, etc.). Pass `overrides.signal` to make cancellation abort the run.
+   */
+  stream(
+    name: string,
+    input: string | ModelMessage[],
+    overrides: Partial<AgentConfig> = {},
+  ): AsyncGenerator<AgentEvent, AgentRunResult> {
+    const config = this.#config(name);
+    const messages: ModelMessage[] = typeof input === 'string' ? [{ role: 'user', content: input }] : input;
+    return streamAgent({ ...config, ...overrides, messages });
+  }
+
+  #config(name: string): AgentConfig {
+    const config = this.#agents.get(name);
+    if (!config) throw new Error(`No agent registered: "${name}". Registered: ${this.names().join(', ') || 'none'}`);
+    return config;
   }
 }
 

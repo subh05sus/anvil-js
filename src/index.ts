@@ -10,6 +10,18 @@ export { serveStatic } from './kernel/static.js';
 export type { StaticOptions } from './kernel/static.js';
 export { cors } from './kernel/cors.js';
 export type { CorsOptions } from './kernel/cors.js';
+export { authenticate, getUser, bearer, apiKey } from './kernel/auth.js';
+export type { AuthenticateOptions } from './kernel/auth.js';
+export { session, getSession } from './kernel/session.js';
+export type { SessionOptions, Session } from './kernel/session.js';
+export { rateLimit } from './kernel/rate-limit.js';
+export type { RateLimitOptions } from './kernel/rate-limit.js';
+export { bodyLimit } from './kernel/body-limit.js';
+export type { BodyLimitOptions } from './kernel/body-limit.js';
+export { getClientIp, REMOTE_ADDR_HEADER } from './kernel/net.js';
+export type { ClientIpOptions } from './kernel/net.js';
+export { parseCookies, serializeCookie, signValue, unsignValue } from './kernel/cookies.js';
+export type { CookieOptions } from './kernel/cookies.js';
 export { HTTP_METHODS } from './kernel/types.js';
 export type {
   Handler,

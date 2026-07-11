@@ -8,11 +8,12 @@ import type { TemplateId } from './init-templates.js';
 import { lintCommand } from './lint.js';
 import { mcpCommand } from './mcp.js';
 import { replayCommand } from './replay.js';
+import { serveCommand } from './serve.js';
 import { startCommand } from './start.js';
 
 const program = new Command();
 
-program.name('anvil').description('Anvil JS — Express for humans. Anvil for agents.').version('1.0.0');
+program.name('anvil').description('Anvil JS — Express for humans. Anvil for agents.').version('1.0.2');
 
 program
   .command('init')
@@ -63,19 +64,55 @@ program
 
 program
   .command('mcp')
-  .description('Serve MCP-exposed routes and server/tools as an MCP server')
+  .description('Serve MCP-exposed routes, tools, resources, and prompts as an MCP server')
   .option('-r, --routes <dir>', 'routes directory', 'server/routes')
   .option('-t, --tools <dir>', 'tools directory', 'server/tools')
+  .option('--resources <dir>', 'resources directory', 'server/resources')
+  .option('--prompts <dir>', 'prompts directory', 'server/prompts')
   .option('--stdio', 'serve over stdio (for local clients like Claude Desktop)')
+  .option('--stateful', 'use the stateful HTTP transport (sessions + SSE)')
   .option('-p, --port <port>', 'HTTP port', '3100')
   .option('-e, --endpoint <path>', 'HTTP endpoint path', '/mcp')
-  .action((opts: { routes: string; tools: string; stdio?: boolean; port: string; endpoint: string }) =>
-    mcpCommand({
-      routes: opts.routes,
-      tools: opts.tools,
-      stdio: opts.stdio,
+  .action(
+    (opts: {
+      routes: string;
+      tools: string;
+      resources: string;
+      prompts: string;
+      stdio?: boolean;
+      stateful?: boolean;
+      port: string;
+      endpoint: string;
+    }) =>
+      mcpCommand({
+        routes: opts.routes,
+        tools: opts.tools,
+        resources: opts.resources,
+        prompts: opts.prompts,
+        stdio: opts.stdio,
+        stateful: opts.stateful,
+        port: Number(opts.port),
+        endpoint: opts.endpoint,
+      }),
+  );
+
+program
+  .command('serve')
+  .description('Run scheduled + event-triggered background agents with a trigger webhook')
+  .option('-d, --dir <dir>', 'background tasks directory', 'server')
+  .option('-p, --port <port>', 'trigger webhook port', '3200')
+  .option('-e, --endpoint <path>', 'trigger endpoint prefix', '/triggers')
+  .option('--interval <ms>', 'scheduler poll interval (ms)', '60000')
+  .option('--trace <target>', "trace store: a sqlite path or 'memory'")
+  .option('--token <token>', 'bearer token required to fire triggers')
+  .action((opts: { dir: string; port: string; endpoint: string; interval: string; trace?: string; token?: string }) =>
+    serveCommand({
+      dir: opts.dir,
       port: Number(opts.port),
       endpoint: opts.endpoint,
+      interval: Number(opts.interval),
+      trace: opts.trace,
+      token: opts.token,
     }),
   );
 

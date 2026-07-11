@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Scheduler, TriggerRegistry, cronMatches, defineSchedule, defineTrigger } from '../src/schedule/index.js';
+import { MemoryStateStore } from '../src/store/index.js';
 import { MemoryTraceStore } from '../src/trace/memory-store.js';
 import { Tracer } from '../src/trace/tracer.js';
 
@@ -37,6 +38,20 @@ describe('Scheduler', () => {
     // Top of the hour → the hourly task.
     expect(await scheduler.tick(at(10, 0))).toEqual(['hourly']);
     expect(ran).toEqual(['at-930', 'hourly']);
+  });
+
+  it('does not re-fire across a restart when a store is shared', async () => {
+    const store = new MemoryStateStore();
+    const ran: string[] = [];
+    const task = defineSchedule({ name: 'nightly', cron: '30 9 * * *', run: () => void ran.push('nightly') });
+
+    const first = new Scheduler({ store }).add(task);
+    expect(await first.tick(at(9, 30))).toEqual(['nightly']);
+
+    // Simulate a process restart within the same minute: fresh Scheduler, same store.
+    const second = new Scheduler({ store }).add(task);
+    expect(await second.tick(at(9, 30))).toEqual([]);
+    expect(ran).toEqual(['nightly']);
   });
 
   it('traces each run and isolates task failures', async () => {

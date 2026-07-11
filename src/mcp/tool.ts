@@ -10,7 +10,7 @@ import type { ToolDefinition } from './types.js';
 
 export type Importer = (file: string) => Promise<unknown>;
 
-const defaultImporter: Importer = (file) => import(pathToFileURL(file).href);
+export const defaultImporter: Importer = (file) => import(pathToFileURL(file).href);
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.mts', '.js', '.mjs']);
 const MCP_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -184,7 +184,7 @@ function assertUniqueNames(tools: ToolDefinition[]): void {
   }
 }
 
-async function isDir(dir: string): Promise<boolean> {
+export async function isDir(dir: string): Promise<boolean> {
   try {
     return (await stat(dir)).isDirectory();
   } catch {
@@ -192,7 +192,7 @@ async function isDir(dir: string): Promise<boolean> {
   }
 }
 
-async function walkFiles(dir: string): Promise<string[]> {
+export async function walkFiles(dir: string): Promise<string[]> {
   const out: string[] = [];
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {

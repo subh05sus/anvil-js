@@ -38,6 +38,24 @@ await triggers.fire('order.created', webhookPayload); // from any webhook handle
 
 Both run under the same tracing as request-driven agents — background work isn't a governance blind spot.
 
+## Running background agents — `anvil serve`
+
+`anvil serve` discovers `schedule.ts` / `trigger.ts` files, starts the scheduler, and exposes an authenticated webhook to fire triggers:
+
+```bash
+anvil serve                                   # scans ./server, webhook on :3200
+anvil serve --dir server --token $SECRET      # require a bearer token to fire triggers
+anvil serve --trace memory --interval 30000   # in-memory traces, 30s poll
+```
+
+```bash
+# Fire a trigger (bearer token required when --token/ANVIL_TRIGGER_TOKEN is set):
+curl -X POST http://localhost:3200/triggers/order.created \
+  -H "authorization: Bearer $SECRET" -d '{"id":"A-1"}'
+```
+
+Scheduled tasks are de-duplicated per minute, and — when a trace/state store is configured — a restart within the same minute won't re-fire a task that already ran. SIGINT/SIGTERM shut the runner down gracefully.
+
 ## Multi-agent orchestration
 
 See [agents.md](./agents.md#multi-agent) — `AgentRegistry`, `agentAsTool`, `callAgent`.
@@ -54,7 +72,7 @@ const server = new A2AServer({
 export default { fetch: a2aHttpHandler(server) }; // mount as a route, or standalone
 ```
 
-Serves the agent card at `/.well-known/agent-card.json` and JSON-RPC (`message/send`, `tasks/get`) at `/a2a`. The same `AgentRegistry` definitions serve REST, MCP, and A2A — one agent, three protocols.
+Serves the agent card at `/.well-known/agent-card.json` and JSON-RPC (`message/send`, `message/stream`, `tasks/get`, `tasks/cancel`) at `/a2a`. `message/stream` returns Server-Sent Events (task status + artifact deltas) mapped from the agent's event stream; a client disconnect or `tasks/cancel` aborts the underlying run. Tasks persist through a `StateStore` (`store` option, in-memory by default) so they survive a restart, with TTL + max-count eviction. The same `AgentRegistry` definitions serve REST, MCP, and A2A — one agent, three protocols.
 
 ## Sandboxed execution
 

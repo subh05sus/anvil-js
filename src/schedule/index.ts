@@ -1,6 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import type { StateStore } from '../store/index.js';
 import type { Tracer } from '../trace/tracer.js';
 
 /**
@@ -81,7 +82,14 @@ export interface SchedulerOptions {
   tracer?: Tracer;
   /** Called if a task throws — defaults to console.error. */
   onError?: (task: string, err: unknown) => void;
+  /**
+   * Persist the last-run minute per task so a restart within the same minute
+   * doesn't re-fire a task that already ran. Default: in-memory only.
+   */
+  store?: StateStore;
 }
+
+const LAST_RUN_PREFIX = 'schedule:lastRun:';
 
 /**
  * Runs scheduled tasks. `tick(now)` fires every task whose cron matches (once
@@ -92,10 +100,12 @@ export class Scheduler {
   #lastRun = new Map<string, string>();
   #tracer?: Tracer;
   #onError: (task: string, err: unknown) => void;
+  #store?: StateStore;
 
   constructor(options: SchedulerOptions = {}) {
     this.#tracer = options.tracer;
     this.#onError = options.onError ?? ((t, e) => console.error(`[anvil] schedule "${t}" failed:`, e));
+    this.#store = options.store;
   }
 
   add(task: ScheduledTask): this {
@@ -110,7 +120,16 @@ export class Scheduler {
     for (const task of this.#tasks) {
       if (this.#lastRun.get(task.name) === minuteKey) continue;
       if (!cronMatches(task.cron, now)) continue;
+      // Cross-restart dedup: seed from the store before deciding to run.
+      if (this.#store) {
+        const persisted = await Promise.resolve(this.#store.get<string>(LAST_RUN_PREFIX + task.name));
+        if (persisted === minuteKey) {
+          this.#lastRun.set(task.name, minuteKey);
+          continue;
+        }
+      }
       this.#lastRun.set(task.name, minuteKey);
+      if (this.#store) await Promise.resolve(this.#store.set(LAST_RUN_PREFIX + task.name, minuteKey));
       ran.push(task.name);
       await this.#runTask(task, { now });
     }
